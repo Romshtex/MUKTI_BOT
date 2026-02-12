@@ -3,8 +3,8 @@ import google.generativeai as genai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, date
-import json
 import time
+import json
 
 # --- НАСТРОЙКИ ---
 st.set_page_config(page_title="MUKTI", page_icon="🔥", layout="centered")
@@ -18,14 +18,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ (GOOGLE SHEETS) ---
+# --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ---
 @st.cache_resource
 def connect_db():
     try:
-        # ПРОВЕРКА: Есть ли ключ в секретах
-        if "CREDENTIALS_JSON" in st.secrets:
-            # Превращаем текст JSON обратно в словарь Python
-            creds_dict = json.loads(st.secrets["CREDENTIALS_JSON"])
+        # Проверяем, заполнил ли пользователь секцию [service_account]
+        if "service_account" in st.secrets:
+            # Превращаем TOML в словарь
+            creds_dict = dict(st.secrets["service_account"])
+            
+            # --- ГЛАВНЫЙ ФИКС ОШИБКИ "INVALID CONTROL CHARACTER" ---
+            # Если ключ содержит экранированные \n, превращаем их в настоящие
+            if "\\n" in creds_dict["private_key"]:
+                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             
             scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -33,15 +38,15 @@ def connect_db():
             sheet = client.open_by_url(st.secrets["SHEET_URL"]).sheet1
             return sheet
         else:
-            st.error("❌ Ошибка: В Secrets не найден CREDENTIALS_JSON")
+            st.error("❌ В Secrets не найдена секция [service_account]. Проверь инструкцию.")
             return None
     except Exception as e:
-        st.error(f"❌ Ошибка подключения к Таблице. Проверь права доступа (email бота). Текст ошибки: {e}")
+        st.error(f"❌ Ошибка подключения: {e}")
         return None
 
 sheet = connect_db()
 
-# --- 2. ФУНКЦИИ РАБОТЫ С ЮЗЕРОМ ---
+# --- 2. ФУНКЦИИ БАЗЫ ДАННЫХ ---
 def get_user_data(username):
     if not sheet: return None, None
     try:
@@ -50,24 +55,20 @@ def get_user_data(username):
             row = sheet.row_values(cell.row)
             return row, cell.row
         return None, None
-    except:
-        return None, None
+    except: return None, None
 
 def update_db(row_num, count):
     if not sheet: return
     try:
-        # Обновляем ячейки: 2 (счетчик), 3 (дата)
         sheet.update_cell(row_num, 2, count)
         sheet.update_cell(row_num, 3, str(date.today()))
-    except:
-        pass
+    except: pass
 
 def create_user(username):
     if not sheet: return
     try:
         sheet.append_row([username, 0, str(date.today()), ""])
-    except:
-        pass
+    except: pass
 
 # --- 3. AI МОЗГИ ---
 try:
@@ -112,20 +113,15 @@ if "user_row" not in st.session_state:
             row_data, row_id = get_user_data(username_input)
             
             if row_data:
-                # СТАРЫЙ ЮЗЕР
                 st.session_state.username = username_input
                 st.session_state.user_row = row_id
-                
-                # Проверяем дату (если наступило завтра - сбрасываем счетчик)
+                # Сброс счетчика, если новый день
                 if len(row_data) > 2 and row_data[2] != str(date.today()):
                     st.session_state.msg_count = 0 
                 else:
                     st.session_state.msg_count = int(row_data[1]) if len(row_data) > 1 else 0
-                
                 st.session_state.messages = [{"role": "assistant", "content": f"С возвращением, {username_input}. Твой счетчик обновлен."}]
-                
             else:
-                # НОВЫЙ ЮЗЕР
                 create_user(username_input)
                 st.session_state.username = username_input
                 st.session_state.msg_count = 0
@@ -145,7 +141,6 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 if prompt := st.chat_input("Сообщение..."):
-    
     if st.session_state.msg_count >= DAILY_LIMIT:
         st.warning(f"🛑 Лимит ({DAILY_LIMIT}) исчерпан. Возвращайся завтра.")
     else:
