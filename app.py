@@ -22,12 +22,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. COOKIES ---
-@st.cache_resource(experimental_allow_widgets=True)
-def get_manager():
-    return stx.CookieManager()
-
-cookie_manager = get_manager()
+# --- 1. COOKIES (ИСПРАВЛЕНО) ---
+# Мы просто создаем менеджер без кэширования, это работает стабильнее
+cookie_manager = stx.CookieManager()
 
 # --- 2. БАЗА ДАННЫХ ---
 @st.cache_resource
@@ -35,16 +32,19 @@ def connect_db():
     try:
         if "service_account" in st.secrets:
             creds_dict = dict(st.secrets["service_account"])
+            # Фикс для переносов строк в ключе
             if "\\n" in creds_dict["private_key"]:
                 creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            
             scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             client = gspread.authorize(creds)
+            # Открываем по ссылке
             sheet = client.open_by_url(st.secrets["SHEET_URL"]).sheet1
             return sheet
         else: return None
     except Exception as e:
-        st.error(f"Ошибка БД: {e}")
+        st.error(f"Ошибка подключения к БД: {e}")
         return None
 
 sheet = connect_db()
@@ -60,7 +60,7 @@ def get_user_data(username):
     except: return None, None
 
 def check_username_taken(username):
-    """Проверяем, занят ли ник (без получения данных)"""
+    """Проверяем, занят ли ник"""
     if not sheet: return False
     try:
         cell = sheet.find(username)
@@ -78,14 +78,14 @@ def create_user_strict(username):
     """Создаем юзера ТОЛЬКО если имя свободно"""
     if not sheet: return False
     try:
-        # Финальная проверка перед записью
         if check_username_taken(username):
             return False
+        # Создаем: Имя | 0 сообщений | Сегодня | Пустая история
         sheet.append_row([username, 0, str(date.today()), ""])
         return True
     except: return False
 
-# --- 4. AI ---
+# --- 4. AI (MUKTI) ---
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except:
@@ -104,7 +104,7 @@ def get_model():
 
 model = get_model()
 if not model:
-    st.error("Сервис недоступен.")
+    st.error("Сервис AI перегружен. Попробуй позже.")
     st.stop()
 
 SYSTEM_PROMPT = """
@@ -121,17 +121,22 @@ SYSTEM_PROMPT = """
 # ==========================================
 
 # АВТО-ВХОД ПО COOKIES
-cookie_user = cookie_manager.get(cookie="mukti_user_id")
+# Получаем куки (может вернуть None, если нет)
+try:
+    cookie_user = cookie_manager.get(cookie="mukti_user_id")
+except:
+    cookie_user = None
 
 if "user_row" not in st.session_state:
     
-    # Если есть куки — пускаем сразу
+    # СЦЕНАРИЙ А: КУКИ ЕСТЬ (ПУСКАЕМ СРАЗУ)
     if cookie_user:
         with st.spinner(f"Вход как {cookie_user}..."):
             row_data, row_id = get_user_data(cookie_user)
             if row_data:
                 st.session_state.username = cookie_user
                 st.session_state.user_row = row_id
+                # Проверка даты (новый день - сброс счетчика)
                 if len(row_data) > 2 and row_data[2] != str(date.today()):
                     st.session_state.msg_count = 0 
                 else:
@@ -139,15 +144,17 @@ if "user_row" not in st.session_state:
                 st.session_state.messages = [{"role": "assistant", "content": f"⚡ С возвращением, {cookie_user}."}]
                 st.rerun()
             else:
-                cookie_manager.delete("mukti_user_id") # Куки протухли
+                # Если в куках имя есть, а в базе нет - удаляем куки
+                try: cookie_manager.delete("mukti_user_id")
+                except: pass
 
-    # ЭКРАН ВХОДА (ДВЕ ВКЛАДКИ)
+    # СЦЕНАРИЙ Б: ЭКРАН ВХОДА (ДВЕ ВКЛАДКИ)
     st.title("🔥 MUKTI")
     st.write("Добро пожаловать в систему освобождения.")
 
     tab1, tab2 = st.tabs(["Я новенький", "У меня есть аккаунт"])
 
-    # ВКЛАДКА 1: РЕГИСТРАЦИЯ (С ЗАЩИТОЙ ИМЕНИ)
+    # ВКЛАДКА 1: РЕГИСТРАЦИЯ
     with tab1:
         new_username = st.text_input("Придумай позывной (Ник):", key="new_user").strip().lower()
         if st.button("Начать путь"):
@@ -155,11 +162,9 @@ if "user_row" not in st.session_state:
                 st.warning("Введите имя.")
             else:
                 with st.spinner("Проверка имени..."):
-                    # Проверяем, занято ли имя
                     if check_username_taken(new_username):
-                        st.error(f"🛑 Позывной '{new_username}' уже занят! Прояви фантазию, выбери другой.")
+                        st.error(f"🛑 Позывной '{new_username}' уже занят! Выбери другой.")
                     else:
-                        # Создаем
                         success = create_user_strict(new_username)
                         if success:
                             st.session_state.username = new_username
@@ -167,24 +172,23 @@ if "user_row" not in st.session_state:
                             st.session_state.user_row = len(sheet.get_all_values())
                             st.session_state.messages = [{"role": "assistant", "content": "Добро пожаловать. Я тебя запомнил."}]
                             
-                            # Сохраняем куки
+                            # СОХРАНЯЕМ КУКИ НА 30 ДНЕЙ
                             cookie_manager.set("mukti_user_id", new_username, expires_at=datetime(2027, 1, 1))
                             time.sleep(1)
                             st.rerun()
                         else:
-                            st.error("Ошибка создания. Попробуй еще раз.")
+                            st.error("Ошибка базы данных. Попробуй позже.")
 
-    # ВКЛАДКА 2: ВХОД (ДЛЯ ТЕХ КТО УЖЕ БЫЛ)
+    # ВКЛАДКА 2: ВХОД
     with tab2:
         old_username = st.text_input("Твой позывной:", key="old_user").strip().lower()
         if st.button("Войти"):
             if not old_username:
                 st.warning("Введите имя.")
             else:
-                with st.spinner("Поиск в базе..."):
+                with st.spinner("Поиск..."):
                     row_data, row_id = get_user_data(old_username)
                     if row_data:
-                        # Нашли -> Входим
                         st.session_state.username = old_username
                         st.session_state.user_row = row_id
                         if len(row_data) > 2 and row_data[2] != str(date.today()):
@@ -193,12 +197,11 @@ if "user_row" not in st.session_state:
                             st.session_state.msg_count = int(row_data[1]) if len(row_data) > 1 else 0
                         st.session_state.messages = [{"role": "assistant", "content": f"Рад видеть, {old_username}."}]
                         
-                        # Обновляем куки (на случай если зашел с нового устройства)
                         cookie_manager.set("mukti_user_id", old_username, expires_at=datetime(2027, 1, 1))
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Такого позывного нет в базе. Перейди во вкладку 'Я новенький'.")
+                        st.error("Такого позывного нет.")
 
     st.stop()
 
