@@ -1,120 +1,135 @@
 import streamlit as st
 import google.generativeai as genai
+import time
 
-# --- НАСТРОЙКИ ---
+# --- НАСТРОЙКИ СТРАНИЦЫ ---
 st.set_page_config(page_title="MUKTI", page_icon="🔥", layout="centered")
 
-# --- ДИЗАЙН ---
+# --- ДИЗАЙН (CSS) ---
 st.markdown("""
 <style>
-    .stApp { background-color: #0e1117; color: #fff; }
-    h1 { color: #facc15; }
-    .stChatInput { bottom: 20px; }
-    .debug-box { font-size: 12px; color: #4b5563; margin-bottom: 10px; }
+    .stApp { background-color: #0e1117; color: #ffffff; }
+    h1 { color: #facc15; font-family: 'Helvetica', sans-serif; }
+    .stTextInput > div > div > input { color: #ffffff; background-color: #1f2937; }
+    .stButton > button { background-color: #facc15; color: #000000; border: none; }
+    .block-container { padding-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔥 MUKTI: Путь к свободе")
+# --- 0. ФЕЙС-КОНТРОЛЬ (ЗАЩИТА ПАРОЛЕМ) ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-# --- 1. АВТОРИЗАЦИЯ ---
+if not st.session_state.authenticated:
+    st.title("🔒 Доступ ограничен")
+    st.markdown("Это закрытая версия AI-ментора **MUKTI**.")
+    
+    password = st.text_input("Введите код доступа:", type="password")
+    
+    if st.button("Войти"):
+        # Проверяем пароль из Secrets
+        if password == st.secrets["ACCESS_CODE"]:
+            st.session_state.authenticated = True
+            st.success("Доступ разрешен.")
+            time.sleep(1)
+            st.rerun() # Перезагружаем страницу, чтобы пустить внутрь
+        else:
+            st.error("Неверный код доступа.")
+    
+    st.stop() # ОСТАНАВЛИВАЕМ КОД ЗДЕСЬ, ЕСЛИ ПАРОЛЬ НЕ ВВЕДЕН
+
+# ==========================================
+# ВСЁ, ЧТО НИЖЕ — ВИДЯТ ТОЛЬКО ИЗБРАННЫЕ
+# ==========================================
+
+# --- 1. АВТОРИЗАЦИЯ GOOGLE ---
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
-except Exception as e:
-    st.error("❌ Нет ключа API. Добавь GOOGLE_API_KEY в Secrets.")
+except:
+    st.error("Ошибка конфигурации ключа.")
     st.stop()
 
-# --- 2. АВТО-ПОИСК РАБОЧЕЙ МОДЕЛИ ---
-# Это самый надежный блок. Мы спрашиваем у Google, что есть, и берем лучшее.
+# --- 2. АВТО-ПОИСК МОДЕЛИ ---
 @st.cache_resource
-def get_working_model():
+def get_model():
     try:
-        # Получаем список всех доступных моделей для твоего ключа
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        
-        # Логика выбора: Ищем 1.5 Pro -> иначе 1.5 Flash -> иначе просто Pro -> иначе первую попавшуюся
-        if not available_models:
-            return None, "Нет доступных моделей"
+        priority_models = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
+        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        for p in priority_models:
+            if p in available: return genai.GenerativeModel(p)
+        return genai.GenerativeModel(available[0])
+    except: return None
 
-        selected_name = ""
-        # Приоритеты
-        if 'models/gemini-1.5-pro' in available_models:
-            selected_name = 'models/gemini-1.5-pro'
-        elif 'models/gemini-1.5-pro-latest' in available_models:
-            selected_name = 'models/gemini-1.5-pro-latest'
-        elif 'models/gemini-1.5-flash' in available_models:
-            selected_name = 'models/gemini-1.5-flash'
-        elif 'models/gemini-pro' in available_models:
-            selected_name = 'models/gemini-pro'
-        else:
-            selected_name = available_models[0] # Берем любую, если основных нет
-            
-        return genai.GenerativeModel(selected_name), selected_name
-    except Exception as e:
-        return None, str(e)
-
-# Инициализация модели
-model, model_name = get_working_model()
-
-# Выводим инфо (чтобы ты видел, к чему подключились)
-if model:
-    st.markdown(f'<div class="debug-box">📡 Подключено к мозгу: {model_name}</div>', unsafe_allow_html=True)
-else:
-    st.error(f"💥 Не удалось найти ни одной модели. Ошибка: {model_name}")
+model = get_model()
+if not model:
+    st.error("Сервис временно недоступен.")
     st.stop()
 
-# --- 3. СИСТЕМНЫЙ ПРОМПТ (MUKTI) ---
+# --- 3. СИСТЕМНЫЙ ПРОМПТ ---
 SYSTEM_PROMPT = """
-ТЫ — MUKTI. Цифровой ментор по освобождению от алкогольной зависимости.
-Твоя база знаний: Книга "Кто такой Алкоголь".
+ТЫ — MUKTI (ОСВОБОЖДЕНИЕ).
+Ты — цифровой ментор, основанный на книге "Кто такой Алкоголь".
 
-ТВОЯ ЛИЧНОСТЬ:
-1. Ты жесткий, но эмпатичный. Алкоголь для тебя — это "Паразит", "Сущность", "Лжец".
-2. Ты никогда не советуешь "пить меньше". Только полная свобода.
-3. Ты не ведешь пустых бесед о погоде. Ты здесь, чтобы спасти жизнь.
+ТВОЯ БАЗА ЗНАНИЙ:
+1. Алкоголь — это "Паразит", "Сущность".
+2. Дофаминовая яма — причина страданий, а не "тяжелая жизнь".
+3. Безопасных доз нет.
+4. Трезвость — это приобретение силы, а не отказ от радости.
 
-ПРОТОКОЛ ЗНАКОМСТВА:
-Если истории сообщений нет, ты должен сначала узнать пользователя.
-1. Спроси имя.
-2. Спроси стаж употребления и триггеры.
-3. Спроси главную боль (мотивацию).
-Только потом давай советы.
+ТВОЙ СТИЛЬ:
+- Жесткий, но эмпатичный.
+- Обращайся по имени.
+- Если пишут "SOS" — используй технику дыхания и переключения.
+
+СЦЕНАРИЙ "ЗНАКОМСТВО":
+Если история пуста, спроси:
+1. Имя.
+2. Стаж и что пьет.
+3. Главную боль (Мотивацию).
 """
 
-# --- 4. ЧАТ ---
+# --- 4. ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ---
+st.title("🔥 MUKTI")
+st.caption("Закрытая Beta-версия")
+
+# Инициализация чата
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Привет. Я — MUKTI. Я здесь, чтобы помочь тебе проснуться. \n\nНачни с главного: как тебя зовут?"}
+        {"role": "assistant", "content": "Привет. Я — MUKTI.\nЯ ждал тебя.\n\nНапиши свое имя, чтобы начать процесс освобождения."}
     ]
+if "count" not in st.session_state:
+    st.session_state.count = 0
 
-# Показываем историю
+DAILY_LIMIT = 5 # Увеличил лимит до 5 для тестов с партнером
+
+# Вывод истории
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Обработка ввода
-if prompt := st.chat_input("Твой ответ..."):
-    # Пишет пользователь
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+# Ввод сообщения
+if prompt := st.chat_input("Напиши сообщение..."):
+    
+    if st.session_state.count >= DAILY_LIMIT:
+        with st.chat_message("assistant"):
+            st.warning("🛑 **Лимит сообщений исчерпан.**\n\nMUKTI требует дисциплины. Возвращайся завтра со свежими мыслями.")
+    else:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    # Отвечает AI
-    with st.chat_message("assistant"):
-        with st.spinner("MUKTI анализирует..."):
-            try:
-                # Формируем запрос
-                history_text = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-                full_query = f"{SYSTEM_PROMPT}\n\nТЕКУЩИЙ ДИАЛОГ:\n{history_text}\n\nОТВЕТ MUKTI:"
-                
-                response = model.generate_content(full_query)
-                ai_answer = response.text
-                
-                st.markdown(ai_answer)
-                st.session_state.messages.append({"role": "assistant", "content": ai_answer})
-            
-            except Exception as e:
-                st.error(f"Ошибка генерации: {e}")
+        with st.chat_message("assistant"):
+            with st.spinner("⚡ MUKTI..."):
+                try:
+                    history_text = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+                    full_query = f"{SYSTEM_PROMPT}\n\nДИАЛОГ:\n{history_text}\n\nОТВЕТ MUKTI:"
+                    
+                    response = model.generate_content(full_query)
+                    ai_answer = response.text
+                    
+                    st.markdown(ai_answer)
+                    st.session_state.messages.append({"role": "assistant", "content": ai_answer})
+                    st.session_state.count += 1
+                except Exception as e:
+                    st.error("Ошибка связи.")
