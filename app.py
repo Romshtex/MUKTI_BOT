@@ -19,7 +19,7 @@ GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets 
 VIP_CODE = "MUKTI_BOSS"
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-pro-latest')
+model = genai.GenerativeModel('gemini-pro')
 
 # --- 3. ДИЗАЙН "DEEP SPACE" ---
 st.set_page_config(page_title="MUKTI", page_icon="💠", layout="centered")
