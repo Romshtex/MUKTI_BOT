@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import time
 import json
 import random
@@ -59,15 +59,18 @@ st.markdown("""
         border: none;
         box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
         transition: all 0.3s ease;
-        width: 100%; /* Кнопки на всю ширину */
+        width: 100%;
     }
     .stButton > button:hover {
         box-shadow: 0 0 20px rgba(14, 165, 233, 0.8);
         transform: scale(1.02);
     }
-    /* Спец-стиль для SOS (если нужно будет выделить отдельно) */
-    div[data-testid="stHorizontalBlock"] button:nth-of-type(1) {
-         /* Это стилизует кнопки в колонках */
+    /* Делаем отключенную кнопку серой и понятной */
+    .stButton > button:disabled {
+        background: #334155 !important;
+        color: #94a3b8 !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
     }
     .stChatMessage {
         background-color: rgba(30, 41, 59, 0.5);
@@ -132,6 +135,9 @@ def register_user(username, password, onboarding_data):
     except: pass
     
     today_str = str(date.today())
+    # При регистрации Streak = 0. Пользователь должен сам нажать кнопку первый раз.
+    # Но last_active ставим "Вчера" (чтобы кнопка была активна сегодня) или просто обрабатываем 0.
+    # Ставим today, но streak 0 - обработаем это в интерфейсе.
     row = [username, password, 0, today_str, today_str, json.dumps(onboarding_data), "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
@@ -165,7 +171,10 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = login_user
                 st.session_state.row_num = row_num
+                
+                # Загружаем данные и дату последней активности
                 st.session_state.streak = int(user_data[2]) if len(user_data) > 2 else 0
+                st.session_state.last_active = user_data[3] if len(user_data) > 3 else str(date.today())
                 st.session_state.reg_date = user_data[4] if len(user_data) > 4 else str(date.today())
                 
                 try: st.session_state.messages = json.loads(user_data[6]) if len(user_data) > 6 else []
@@ -238,24 +247,49 @@ else:
     else:
         st.title("MUKTI CORE 💠")
         
-        # --- ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКИ НА ВИДУ) ---
+        # --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
         col1, col2, col3 = st.columns([1, 1, 1])
         
         with col1:
              st.markdown(f"<div style='text-align:center; font-size: 14px; color: #94a3b8;'>ДНЕЙ СВОБОДЫ</div><div style='text-align:center; font-size: 24px; font-weight:bold; color: #0ea5e9;'>{st.session_state.streak}</div>", unsafe_allow_html=True)
         
         with col2:
-            # Кнопка "Я Трезв"
-            if st.button("✅ СЕГОДНЯ ЧИСТ"):
-                new_streak = st.session_state.streak + 1
-                update_db_field(st.session_state.row_num, 3, new_streak)
-                update_db_field(st.session_state.row_num, 4, str(date.today()))
-                st.session_state.streak = new_streak
-                st.balloons()
-                st.rerun()
+            # === УМНАЯ ЛОГИКА СЧЕТЧИКА ===
+            today = date.today()
+            try:
+                last_active_date = datetime.strptime(st.session_state.last_active, "%Y-%m-%d").date()
+            except:
+                last_active_date = today # Если ошибка, считаем что сегодня
+            
+            # Разница в днях
+            delta_days = (today - last_active_date).days
+            
+            # 1. Если уже нажимал сегодня (разница 0 дней и счетчик > 0)
+            if delta_days == 0 and st.session_state.streak > 0:
+                st.button("✅ НА СЕГОДНЯ ВСЁ", disabled=True)
+                
+            # 2. Если нажимал вчера или ранее (или новый юзер)
+            else:
+                if st.button("✅ СЕГОДНЯ ЧИСТ"):
+                    # Логика СРЫВА: Если пропустил больше 1 дня -> Сброс
+                    # Исключение: Если streak 0, то сброс не нужен
+                    if delta_days > 1 and st.session_state.streak > 0:
+                         new_streak = 1 # Начинаем заново
+                         st.toast("Счетчик сброшен из-за пропуска. Начинаем заново!", icon="🔄")
+                    else:
+                         new_streak = st.session_state.streak + 1
+                         
+                    # Сохраняем в базу
+                    update_db_field(st.session_state.row_num, 3, new_streak) # Col C
+                    update_db_field(st.session_state.row_num, 4, str(today)) # Col D (Last Active)
+                    
+                    # Обновляем сессию
+                    st.session_state.streak = new_streak
+                    st.session_state.last_active = str(today)
+                    st.balloons()
+                    st.rerun()
                 
         with col3:
-            # Кнопка SOS
             if st.button("🚨 SOS"):
                 st.session_state.sos_mode = True
                 st.rerun()
@@ -277,7 +311,6 @@ else:
 
         if locked:
             st.info(f"🔒 Лимит сообщений ({limit}) исчерпан. Система перезаряжается до завтра.")
-            # Поле для VIP кода, если заблокировано
             code = st.text_input("Ввести код MUKTI BOSS для разблокировки")
             if st.button("АКТИВИРОВАТЬ КОД"):
                 if code == VIP_CODE:
@@ -292,7 +325,6 @@ else:
                 
                 with st.chat_message("assistant"):
                     with st.spinner("Анализ..."):
-                        # --- НАСТРОЙКА ХАРАКТЕРА ---
                         system_prompt = f"""
                         Ты - MUKTI. Пользователь: {st.session_state.username}.
                         Задача: Поддерживать трезвость.
@@ -321,7 +353,6 @@ else:
                         except Exception as e:
                             st.error("Ошибка связи.")
     
-    # Кнопка выхода внизу сайдбара (или здесь внизу)
     with st.sidebar:
         st.write(f"Агент: {st.session_state.username}")
         if st.button("Выход из системы"):
