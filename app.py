@@ -17,7 +17,21 @@ except ImportError:
 # --- 2. НАСТРОЙКИ (ЗАПОЛНИ СВОИМИ ДАННЫМИ) ---
 # Вставь свои ключи сюда или в st.secrets (рекомендуется)
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "ТВОЙ_КЛЮЧ_GEMINI"
-CREDENTIALS_DICT = st.secrets["gcp_service_account"] if "gcp_service_account" in st.secrets else None # Или загрузи json
+
+# === УМНАЯ ЗАГРУЗКА КЛЮЧЕЙ (ИСПРАВЛЕНИЕ ОШИБКИ) ===
+CREDENTIALS_DICT = None
+if "gcp_service_account" in st.secrets:
+    creds_content = st.secrets["gcp_service_account"]
+    
+    # Если секреты пришли как "Строка" (текст), мы их расшифруем
+    if isinstance(creds_content, str):
+        try:
+            CREDENTIALS_DICT = json.loads(creds_content)
+        except json.JSONDecodeError:
+            st.error("❌ Ошибка в формате JSON в секретах. Проверь кавычки.")
+    # Если секреты пришли как "Словарь" (твой Вариант Б), берем как есть
+    else:
+        CREDENTIALS_DICT = creds_content
 
 # Код для безлимита
 VIP_CODE = "MUKTI_BOSS"
