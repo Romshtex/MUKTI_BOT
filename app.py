@@ -14,14 +14,12 @@ except ImportError:
     FULL_BOOK_TEXT = "Текст книги недоступен."
     BOOK_SUMMARY = "Философия освобождения от зависимости."
 
-# --- 2. НАСТРОЙКИ (ЗАПОЛНИ СВОИМИ ДАННЫМИ) ---
-# Вставь свои ключи сюда или в st.secrets (рекомендуется)
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "ТВОЙ_КЛЮЧ_GEMINI"
+# --- 2. НАСТРОЙКИ ---
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "ТВОЙ_КЛЮЧ"
+VIP_CODE = "MUKTI_BOSS"
 
-# === УМНАЯ ЗАГРУЗКА КЛЮЧЕЙ (ИСПРАВЛЕНИЕ ОШИБКИ) ===
-CREDENTIALS_DICT = None
-if "gcp_service_account" in st.secrets:
-    creds_content = st.secrets["gcp_service_account"]
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
     
     # Если секреты пришли как "Строка" (текст), мы их расшифруем
     if isinstance(creds_content, str):
