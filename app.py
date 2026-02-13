@@ -59,15 +59,15 @@ st.markdown("""
         border: none;
         box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
         transition: all 0.3s ease;
+        width: 100%; /* Кнопки на всю ширину */
     }
     .stButton > button:hover {
         box-shadow: 0 0 20px rgba(14, 165, 233, 0.8);
         transform: scale(1.02);
     }
-    .sos-btn > button {
-        background: linear-gradient(90deg, #ef4444, #dc2626) !important;
-        color: white !important;
-        animation: pulse 2s infinite;
+    /* Спец-стиль для SOS (если нужно будет выделить отдельно) */
+    div[data-testid="stHorizontalBlock"] button:nth-of-type(1) {
+         /* Это стилизует кнопки в колонках */
     }
     .stChatMessage {
         background-color: rgba(30, 41, 59, 0.5);
@@ -132,7 +132,6 @@ def register_user(username, password, onboarding_data):
     except: pass
     
     today_str = str(date.today())
-    # При регистрации история пустая "[]"
     row = [username, password, 0, today_str, today_str, json.dumps(onboarding_data), "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
@@ -179,9 +178,8 @@ if not st.session_state.logged_in:
                     
                 st.session_state.vip = (str(user_data[7]).upper() == "TRUE") if len(user_data) > 7 else False
 
-                # === АВТО-ПРИВЕТСТВИЕ (ЕСЛИ ПУСТО) ===
                 if not st.session_state.messages:
-                    welcome_text = f"Добро пожаловать в пространство, {login_user}. Ты сделал первый шаг к свободе. Я здесь, чтобы помочь тебе выйти из зависимости. Если ты не читал Книгу — начни с этого, иначе нам будет сложно понять друг друга."
+                    welcome_text = f"Добро пожаловать в пространство, {login_user}. Ты сделал первый шаг к свободе. Я здесь, чтобы помочь тебе выйти из зависимости."
                     st.session_state.messages.append({"role": "assistant", "content": welcome_text})
                     save_history(row_num, st.session_state.messages)
 
@@ -219,62 +217,52 @@ if not st.session_state.logged_in:
 
 # === ОСНОВНОЙ ИНТЕРФЕЙС ===
 else:
-    with st.sidebar:
-        st.markdown(f"### АГЕНТ: **{st.session_state.username}**")
-        
-        if st.session_state.vip:
-            st.markdown("💎 СТАТУС: **BOSS**")
-        else:
-            st.markdown("👤 СТАТУС: **Новичок**")
-            try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
-            except: reg_d = date.today()
-            limit = 7 if (date.today() - reg_d).days == 0 else 3
-            msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
-            st.progress(min(msgs_today / limit, 1.0), text=f"Лимит: {msgs_today}/{limit}")
-            
-            if msgs_today >= limit:
-                st.error("🛑 Лимит исчерпан.")
-                code = st.text_input("Код доступа")
-                if st.button("АКТИВИРОВАТЬ"):
-                    if code == VIP_CODE:
-                        update_db_field(st.session_state.row_num, 8, "TRUE")
-                        st.session_state.vip = True
-                        st.rerun()
+    # --- ЛОГИКА SOS ---
+    if "sos_mode" not in st.session_state: st.session_state.sos_mode = False
 
-        st.markdown("---")
-        st.metric("Дней Свободы", st.session_state.streak)
-        if st.button("✅ Я СЕГОДНЯ ТРЕЗВ"):
-             new_streak = st.session_state.streak + 1
-             update_db_field(st.session_state.row_num, 3, new_streak)
-             update_db_field(st.session_state.row_num, 4, str(date.today()))
-             st.session_state.streak = new_streak
-             st.balloons()
-             st.rerun()
-
-        st.markdown("---")
-        if st.button("SOS: Я ХОЧУ ВЫПИТЬ", key="sos_btn"):
-            st.session_state.sos_mode = True
-        
-        if st.button("🚪 ВЫХОД"):
-            st.session_state.logged_in = False
-            st.rerun()
-
-    if "sos_mode" in st.session_state and st.session_state.sos_mode:
+    if st.session_state.sos_mode:
         st.markdown("""
-        <div style="background-color: #450a0a; padding: 20px; border-radius: 10px; border: 2px solid #ef4444; text-align: center;">
-            <h2 style="color: #fca5a5; margin:0;">⚠️ ВНИМАНИЕ: АТАКА ПАРАЗИТА ⚠️</h2>
+        <div style="background-color: #450a0a; padding: 20px; border-radius: 10px; border: 2px solid #ef4444; text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #fca5a5; margin:0;">⚠️ АТАКА ПАРАЗИТА ⚠️</h2>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown(f"### Твой якорь: **{st.session_state.stop_factor}**")
-        st.info("Вдох (4 сек) -> Пауза (4 сек) -> Выдох (4 сек). 5 раз.")
-        st.warning("20 приседаний прямо сейчас. Сбрось напряжение.")
-        if st.button("Я УСПОКОИЛСЯ. ОТБОЙ ТРЕВОГИ."):
+        st.markdown(f"### ⚓️ Твой якорь: **{st.session_state.stop_factor}**")
+        st.info("1. Вдох (4 сек) -> Пауза (4 сек) -> Выдох (4 сек). 5 раз.")
+        st.warning("2. Сделай 20 приседаний прямо сейчас. Сбрось напряжение.")
+        
+        if st.button("Я УСПОКОИЛСЯ. ОТБОЙ ТРЕВОГИ.", use_container_width=True):
             st.session_state.sos_mode = False
+            st.session_state.messages.append({"role": "assistant", "content": "Молодец. Ты только что выиграл битву. Паразит отступил."})
             st.rerun()
-            
+
     else:
         st.title("MUKTI CORE 💠")
         
+        # --- ПАНЕЛЬ УПРАВЛЕНИЯ (КНОПКИ НА ВИДУ) ---
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+             st.markdown(f"<div style='text-align:center; font-size: 14px; color: #94a3b8;'>ДНЕЙ СВОБОДЫ</div><div style='text-align:center; font-size: 24px; font-weight:bold; color: #0ea5e9;'>{st.session_state.streak}</div>", unsafe_allow_html=True)
+        
+        with col2:
+            # Кнопка "Я Трезв"
+            if st.button("✅ СЕГОДНЯ ЧИСТ"):
+                new_streak = st.session_state.streak + 1
+                update_db_field(st.session_state.row_num, 3, new_streak)
+                update_db_field(st.session_state.row_num, 4, str(date.today()))
+                st.session_state.streak = new_streak
+                st.balloons()
+                st.rerun()
+                
+        with col3:
+            # Кнопка SOS
+            if st.button("🚨 SOS"):
+                st.session_state.sos_mode = True
+                st.rerun()
+
+        st.markdown("---")
+
+        # --- ЧАТ ---
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -284,33 +272,44 @@ else:
              try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
              except: reg_d = date.today()
              limit = 7 if (date.today() - reg_d).days == 0 else 3
-             if sum(1 for m in st.session_state.messages if m["role"] == "user") >= limit: locked = True
+             msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
+             if msgs_today >= limit: locked = True
 
         if locked:
-            st.info("🔒 Лимит на сегодня исчерпан. Жду тебя завтра.")
+            st.info(f"🔒 Лимит сообщений ({limit}) исчерпан. Система перезаряжается до завтра.")
+            # Поле для VIP кода, если заблокировано
+            code = st.text_input("Ввести код MUKTI BOSS для разблокировки")
+            if st.button("АКТИВИРОВАТЬ КОД"):
+                if code == VIP_CODE:
+                    update_db_field(st.session_state.row_num, 8, "TRUE")
+                    st.session_state.vip = True
+                    st.rerun()
         else:
-            if prompt := st.chat_input("Введи сообщение..."):
+            if prompt := st.chat_input("Сообщение для Системы..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
                 
                 with st.chat_message("assistant"):
-                    with st.spinner("Синхронизация..."):
+                    with st.spinner("Анализ..."):
                         # --- НАСТРОЙКА ХАРАКТЕРА ---
                         system_prompt = f"""
-                        Ты - MUKTI. Твой пользователь: {st.session_state.username}.
-                        Твоя задача: Помочь ему оставаться трезвым.
+                        Ты - MUKTI. Пользователь: {st.session_state.username}.
+                        Задача: Поддерживать трезвость.
                         
-                        ТВОЙ ХАРАКТЕР:
-                        1. Обращайся к пользователю ТОЛЬКО по имени: {st.session_state.username}. Не используй слово "Аватар" как обращение.
-                        2. Будь краток. Максимум 3-4 предложения. Не пиши поэмы.
-                        3. Ты - "Боевой товарищ", а не "Унылый философ". Говори четко, по делу, поддерживай, но не сюсюкайся.
-                        4. Алкоголь называй "Паразит" или "Сбой программы".
+                        ИНСТРУКЦИИ:
+                        1. Обращайся по имени: {st.session_state.username}.
+                        2. Будь краток (макс 3-4 предложения).
+                        3. Ты "Боевой товарищ", а не философ.
+                        4. Алкоголь = "Паразит".
                         
-                        БАЗА ЗНАНИЙ (Использовать суть, но не цитировать кусками):
-                        {BOOK_SUMMARY}
+                        ВАЖНО ПРО ДИАЛОГ:
+                        Не просто отвечай на вопрос, а старайся развивать диалог.
+                        Если уместно — задай встречный вопрос, чтобы углубить тему или заставить пользователя задуматься.
+                        Делай это по наитию (интуитивно), не в каждом сообщении, а когда чувствуешь, что это нужно.
                         
-                        Мотивация пользователя (Якорь): {st.session_state.get('stop_factor')}
+                        БАЗА: {BOOK_SUMMARY}
+                        МОТИВАЦИЯ: {st.session_state.get('stop_factor')}
                         """
                         full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                         
@@ -321,3 +320,10 @@ else:
                             save_history(st.session_state.row_num, st.session_state.messages)
                         except Exception as e:
                             st.error("Ошибка связи.")
+    
+    # Кнопка выхода внизу сайдбара (или здесь внизу)
+    with st.sidebar:
+        st.write(f"Агент: {st.session_state.username}")
+        if st.button("Выход из системы"):
+            st.session_state.logged_in = False
+            st.rerun()
