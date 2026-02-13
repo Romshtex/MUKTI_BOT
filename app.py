@@ -19,7 +19,34 @@ GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets 
 VIP_CODE = "MUKTI_BOSS"
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+
+# --- 2.1 УМНОЕ ПОДКЛЮЧЕНИЕ МОЗГОВ (ТВОЙ КОД) ---
+@st.cache_resource
+def get_model():
+    try:
+        # Получаем список всех доступных моделей для твоего ключа
+        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # Приоритет: Сначала Про 1.5, потом Флэш, потом обычная Про
+        priority_models = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
+        
+        for p in priority_models:
+            if p in available: 
+                return genai.GenerativeModel(p)
+        
+        # Если приоритетных нет, берем первую попавшуюся рабочую
+        if available:
+            return genai.GenerativeModel(available[0])
+            
+    except Exception as e:
+        return None
+    return None
+
+model = get_model()
+
+if not model:
+    st.error("⚠️ СИСТЕМНЫЙ СБОЙ: Нейросеть недоступна. Проверь API Key или попробуй позже.")
+    st.stop()
 
 # --- 3. ДИЗАЙН "DEEP SPACE" ---
 st.set_page_config(page_title="MUKTI", page_icon="💠", layout="centered")
@@ -66,12 +93,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. ФУНКЦИИ БАЗЫ ДАННЫХ (ВЕЗДЕХОД 2.0) ---
+# --- 4. ФУНКЦИИ БАЗЫ ДАННЫХ (ВЕЗДЕХОД) ---
 @st.cache_resource
 def get_db():
     creds_dict = None
     
-    # ВАРИАНТ 1: Ключи лежат в секции [gcp_service_account]
+    # ВАРИАНТ 1: Секция [gcp_service_account]
     if "gcp_service_account" in st.secrets:
         raw = st.secrets["gcp_service_account"]
         if hasattr(raw, "to_dict"): creds_dict = raw.to_dict()
@@ -80,10 +107,9 @@ def get_db():
             try: creds_dict = json.loads(raw)
             except: pass
             
-    # ВАРИАНТ 2: Ключи лежат ПРЯМО В КОРНЕ (без секции)
+    # ВАРИАНТ 2: Корневые секреты
     if not creds_dict:
         if "private_key" in st.secrets and "client_email" in st.secrets:
-            # Собираем словарь вручную из корня
             creds_dict = {
                 "type": st.secrets.get("type", "service_account"),
                 "project_id": st.secrets.get("project_id", ""),
@@ -98,10 +124,9 @@ def get_db():
             }
 
     if not creds_dict:
-        st.error("❌ Ошибка: Не найдены ключи Google (ни в [gcp_service_account], ни в корне).")
+        # Если базы нет - работаем без нее (чтобы бот не падал)
         return None
 
-    # Подключение
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -109,7 +134,6 @@ def get_db():
         sheet = client.open("MUKTI_DB").sheet1
         return sheet
     except Exception as e:
-        st.error(f"❌ Ошибка соединения с Гуглом: {e}")
         return None
 
 def load_user(username):
@@ -125,12 +149,11 @@ def load_user(username):
 
 def register_user(username, password, onboarding_data):
     sheet = get_db()
-    # Если базы нет - возвращаем None (ошибка), а не False (занят)
-    if not sheet: return "ERROR" 
+    if not sheet: return "ERROR_DB" 
     
     try:
         if sheet.find(username):
-            return "TAKEN" # Имя занято
+            return "TAKEN"
     except:
         pass 
     
@@ -212,8 +235,10 @@ if not st.session_state.logged_in:
                         st.success("Идентификация пройдена! Теперь нажми ВХОД.")
                     elif status == "TAKEN":
                         st.error("Это имя уже занято. Выбери другое.")
+                    elif status == "ERROR_DB":
+                        st.error("Ошибка базы данных. Но я могу работать в демо-режиме (без сохранения).")
                     else:
-                        st.error("Ошибка соединения с базой данных. Проверь настройки.")
+                        st.error("Неизвестная ошибка.")
                 else:
                     st.error("Заполни все поля.")
 
@@ -311,9 +336,10 @@ else:
                     with st.spinner("Синхронизация..."):
                         system_prompt = f"""
                         Ты MUKTI. Эксперт по отказу от алкоголя.
-                        Философия: {BOOK_SUMMARY}
-                        Книга: {FULL_BOOK_TEXT[:3000]}...
-                        Мотивация: {st.session_state.get('stop_factor')}
+                        Твоя задача: Поддерживать, давать советы из книги, быть жестким к "Паразиту" (алкоголю) и добрым к "Аватару" (человеку).
+                        Философия книги: {BOOK_SUMMARY}
+                        Текст книги для цитат: {FULL_BOOK_TEXT[:3000]}...
+                        Мотивация пользователя: {st.session_state.get('stop_factor')}
                         """
                         full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                         
@@ -323,4 +349,4 @@ else:
                             st.session_state.messages.append({"role": "assistant", "content": response})
                             save_history(st.session_state.row_num, st.session_state.messages)
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"Ошибка нейросети: {e}")
