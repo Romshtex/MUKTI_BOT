@@ -20,32 +20,21 @@ VIP_CODE = "MUKTI_BOSS"
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- 2.1 УМНОЕ ПОДКЛЮЧЕНИЕ МОЗГОВ (ТВОЙ КОД) ---
+# --- 2.1 УМНОЕ ПОДКЛЮЧЕНИЕ МОЗГОВ ---
 @st.cache_resource
 def get_model():
     try:
-        # Получаем список всех доступных моделей для твоего ключа
         available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # Приоритет: Сначала Про 1.5, потом Флэш, потом обычная Про
         priority_models = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
-        
         for p in priority_models:
-            if p in available: 
-                return genai.GenerativeModel(p)
-        
-        # Если приоритетных нет, берем первую попавшуюся рабочую
-        if available:
-            return genai.GenerativeModel(available[0])
-            
-    except Exception as e:
-        return None
+            if p in available: return genai.GenerativeModel(p)
+        if available: return genai.GenerativeModel(available[0])
+    except: return None
     return None
 
 model = get_model()
-
 if not model:
-    st.error("⚠️ СИСТЕМНЫЙ СБОЙ: Нейросеть недоступна. Проверь API Key или попробуй позже.")
+    st.error("⚠️ СИСТЕМНЫЙ СБОЙ: Нейросеть недоступна.")
     st.stop()
 
 # --- 3. ДИЗАЙН "DEEP SPACE" ---
@@ -80,11 +69,6 @@ st.markdown("""
         color: white !important;
         animation: pulse 2s infinite;
     }
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
     .stChatMessage {
         background-color: rgba(30, 41, 59, 0.5);
         border-radius: 10px;
@@ -93,12 +77,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. ФУНКЦИИ БАЗЫ ДАННЫХ (ВЕЗДЕХОД) ---
+# --- 4. ФУНКЦИИ БАЗЫ ДАННЫХ ---
 @st.cache_resource
 def get_db():
     creds_dict = None
-    
-    # ВАРИАНТ 1: Секция [gcp_service_account]
     if "gcp_service_account" in st.secrets:
         raw = st.secrets["gcp_service_account"]
         if hasattr(raw, "to_dict"): creds_dict = raw.to_dict()
@@ -107,7 +89,6 @@ def get_db():
             try: creds_dict = json.loads(raw)
             except: pass
             
-    # ВАРИАНТ 2: Корневые секреты
     if not creds_dict:
         if "private_key" in st.secrets and "client_email" in st.secrets:
             creds_dict = {
@@ -123,9 +104,7 @@ def get_db():
                 "client_x509_cert_url": st.secrets.get("client_x509_cert_url", "")
             }
 
-    if not creds_dict:
-        # Если базы нет - работаем без нее (чтобы бот не падал)
-        return None
+    if not creds_dict: return None
 
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -141,23 +120,19 @@ def load_user(username):
     if not sheet: return None, None
     try:
         cell = sheet.find(username)
-        if cell:
-            return sheet.row_values(cell.row), cell.row
-    except:
-        pass
+        if cell: return sheet.row_values(cell.row), cell.row
+    except: pass
     return None, None
 
 def register_user(username, password, onboarding_data):
     sheet = get_db()
-    if not sheet: return "ERROR_DB" 
-    
+    if not sheet: return "ERROR_DB"
     try:
-        if sheet.find(username):
-            return "TAKEN"
-    except:
-        pass 
+        if sheet.find(username): return "TAKEN"
+    except: pass
     
     today_str = str(date.today())
+    # При регистрации история пустая "[]"
     row = [username, password, 0, today_str, today_str, json.dumps(onboarding_data), "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
@@ -191,7 +166,6 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.username = login_user
                 st.session_state.row_num = row_num
-                
                 st.session_state.streak = int(user_data[2]) if len(user_data) > 2 else 0
                 st.session_state.reg_date = user_data[4] if len(user_data) > 4 else str(date.today())
                 
@@ -204,6 +178,13 @@ if not st.session_state.logged_in:
                 except: st.session_state.stop_factor = "Свобода"
                     
                 st.session_state.vip = (str(user_data[7]).upper() == "TRUE") if len(user_data) > 7 else False
+
+                # === АВТО-ПРИВЕТСТВИЕ (ЕСЛИ ПУСТО) ===
+                if not st.session_state.messages:
+                    welcome_text = f"Добро пожаловать в пространство, {login_user}. Ты сделал первый шаг к свободе. Я здесь, чтобы помочь тебе выйти из зависимости. Если ты не читал Книгу — начни с этого, иначе нам будет сложно понять друг друга."
+                    st.session_state.messages.append({"role": "assistant", "content": welcome_text})
+                    save_history(row_num, st.session_state.messages)
+
                 st.rerun()
             else:
                 st.error("Ошибка: Неверное имя или пароль.")
@@ -228,17 +209,11 @@ if not st.session_state.logged_in:
             if st.button("ИНИЦИАЛИЗАЦИЯ"):
                 if new_user and new_pass and goal and stop_factor:
                     onboarding = {"goal": goal, "stop_factor": stop_factor, "read_book": True}
-                    
                     status = register_user(new_user, new_pass, onboarding)
-                    
                     if status == "OK":
                         st.success("Идентификация пройдена! Теперь нажми ВХОД.")
-                    elif status == "TAKEN":
-                        st.error("Это имя уже занято. Выбери другое.")
-                    elif status == "ERROR_DB":
-                        st.error("Ошибка базы данных. Но я могу работать в демо-режиме (без сохранения).")
-                    else:
-                        st.error("Неизвестная ошибка.")
+                    elif status == "TAKEN": st.error("Это имя уже занято.")
+                    else: st.error("Ошибка базы данных.")
                 else:
                     st.error("Заполни все поля.")
 
@@ -251,20 +226,15 @@ else:
             st.markdown("💎 СТАТУС: **BOSS**")
         else:
             st.markdown("👤 СТАТУС: **Новичок**")
-            
-            try: reg_date_obj = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
-            except: reg_date_obj = date.today()
-                
-            days_registered = (date.today() - reg_date_obj).days
-            daily_limit = 7 if days_registered == 0 else 3
-            
+            try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
+            except: reg_d = date.today()
+            limit = 7 if (date.today() - reg_d).days == 0 else 3
             msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
-            st.progress(min(msgs_today / daily_limit, 1.0), text=f"Лимит: {msgs_today}/{daily_limit}")
+            st.progress(min(msgs_today / limit, 1.0), text=f"Лимит: {msgs_today}/{limit}")
             
-            if msgs_today >= daily_limit:
+            if msgs_today >= limit:
                 st.error("🛑 Лимит исчерпан.")
-                st.info("Введи код доступа.")
-                code = st.text_input("Код доступа MUKTI")
+                code = st.text_input("Код доступа")
                 if st.button("АКТИВИРОВАТЬ"):
                     if code == VIP_CODE:
                         update_db_field(st.session_state.row_num, 8, "TRUE")
@@ -282,7 +252,6 @@ else:
              st.rerun()
 
         st.markdown("---")
-        st.markdown("### 🚨 ЭКСТРЕННАЯ ПОМОЩЬ")
         if st.button("SOS: Я ХОЧУ ВЫПИТЬ", key="sos_btn"):
             st.session_state.sos_mode = True
         
@@ -296,15 +265,9 @@ else:
             <h2 style="color: #fca5a5; margin:0;">⚠️ ВНИМАНИЕ: АТАКА ПАРАЗИТА ⚠️</h2>
         </div>
         """, unsafe_allow_html=True)
-        
         st.markdown(f"### Твой якорь: **{st.session_state.stop_factor}**")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            st.info("**1. ДЫХАНИЕ**\n\nВдох (4 сек) -> Пауза (4 сек) -> Выдох (4 сек). 5 раз.")
-        with c2:
-            st.warning("**2. ТЕЛО**\n\n20 приседаний прямо сейчас. Сбрось напряжение.")
-            
+        st.info("Вдох (4 сек) -> Пауза (4 сек) -> Выдох (4 сек). 5 раз.")
+        st.warning("20 приседаний прямо сейчас. Сбрось напряжение.")
         if st.button("Я УСПОКОИЛСЯ. ОТБОЙ ТРЕВОГИ."):
             st.session_state.sos_mode = False
             st.rerun()
@@ -321,8 +284,7 @@ else:
              try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
              except: reg_d = date.today()
              limit = 7 if (date.today() - reg_d).days == 0 else 3
-             if sum(1 for m in st.session_state.messages if m["role"] == "user") >= limit:
-                 locked = True
+             if sum(1 for m in st.session_state.messages if m["role"] == "user") >= limit: locked = True
 
         if locked:
             st.info("🔒 Лимит на сегодня исчерпан. Жду тебя завтра.")
@@ -334,12 +296,21 @@ else:
                 
                 with st.chat_message("assistant"):
                     with st.spinner("Синхронизация..."):
+                        # --- НАСТРОЙКА ХАРАКТЕРА ---
                         system_prompt = f"""
-                        Ты MUKTI. Эксперт по отказу от алкоголя.
-                        Твоя задача: Поддерживать, давать советы из книги, быть жестким к "Паразиту" (алкоголю) и добрым к "Аватару" (человеку).
-                        Философия книги: {BOOK_SUMMARY}
-                        Текст книги для цитат: {FULL_BOOK_TEXT[:3000]}...
-                        Мотивация пользователя: {st.session_state.get('stop_factor')}
+                        Ты - MUKTI. Твой пользователь: {st.session_state.username}.
+                        Твоя задача: Помочь ему оставаться трезвым.
+                        
+                        ТВОЙ ХАРАКТЕР:
+                        1. Обращайся к пользователю ТОЛЬКО по имени: {st.session_state.username}. Не используй слово "Аватар" как обращение.
+                        2. Будь краток. Максимум 3-4 предложения. Не пиши поэмы.
+                        3. Ты - "Боевой товарищ", а не "Унылый философ". Говори четко, по делу, поддерживай, но не сюсюкайся.
+                        4. Алкоголь называй "Паразит" или "Сбой программы".
+                        
+                        БАЗА ЗНАНИЙ (Использовать суть, но не цитировать кусками):
+                        {BOOK_SUMMARY}
+                        
+                        Мотивация пользователя (Якорь): {st.session_state.get('stop_factor')}
                         """
                         full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                         
@@ -349,4 +320,4 @@ else:
                             st.session_state.messages.append({"role": "assistant", "content": response})
                             save_history(st.session_state.row_num, st.session_state.messages)
                         except Exception as e:
-                            st.error(f"Ошибка нейросети: {e}")
+                            st.error("Ошибка связи.")
