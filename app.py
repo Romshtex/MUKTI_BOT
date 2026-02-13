@@ -5,358 +5,347 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, date
 import time
 import json
-import extra_streamlit_components as stx
+import random
 
-# --- НАСТРОЙКИ СТРАНИЦЫ ---
-st.set_page_config(page_title="MUKTI", page_icon="🟣", layout="centered")
+# --- 1. ПОДКЛЮЧЕНИЕ КНИГИ ---
+try:
+    from book import FULL_BOOK_TEXT, BOOK_SUMMARY
+except ImportError:
+    FULL_BOOK_TEXT = "Текст книги недоступен."
+    BOOK_SUMMARY = "Философия освобождения от зависимости."
 
-# --- КОСМИЧЕСКИЙ ДИЗАЙН (CSS) ---
+# --- 2. НАСТРОЙКИ (ЗАПОЛНИ СВОИМИ ДАННЫМИ) ---
+# Вставь свои ключи сюда или в st.secrets (рекомендуется)
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "ТВОЙ_КЛЮЧ_GEMINI"
+CREDENTIALS_DICT = st.secrets["gcp_service_account"] if "gcp_service_account" in st.secrets else None # Или загрузи json
+
+# Код для безлимита
+VIP_CODE = "MUKTI_BOSS"
+
+genai.configure(api_key=GOOGLE_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
+
+# --- 3. ДИЗАЙН "DEEP SPACE" ---
+st.set_page_config(page_title="MUKTI", page_icon="💠", layout="centered")
+
 st.markdown("""
 <style>
     /* Основной фон - глубокий космос */
-    .stApp { background-color: #0e1117; color: #ffffff; }
-    
-    /* Заголовки */
-    h1 { color: #ffffff; font-weight: 300; letter-spacing: 2px; }
-    h3 { color: #a78bfa; } /* Светло-фиолетовый */
-    
-    /* Поля ввода */
-    .stTextInput > div > div > input { 
-        background-color: #1f2937; 
-        color: #fff; 
-        border: 1px solid #4c1d95; /* Темно-фиолетовая рамка */
+    .stApp {
+        background-color: #020617;
+        background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 60%);
+        color: #e2e8f0;
     }
     
-    /* Кнопки (Фиолетовый неон) */
-    .stButton > button { 
-        background-color: #7c3aed; /* Насыщенный фиолетовый */
-        color: #ffffff; 
-        font-weight: bold; 
-        border: none; 
-        width: 100%; /* Растянуть на всю ширину */
-        border-radius: 8px;
-        transition: 0.3s;
+    /* Текстовые поля ввода */
+    .stTextInput > div > div > input {
+        background-color: #0f172a; 
+        color: #0ea5e9; 
+        border: 1px solid #1e293b;
+    }
+    
+    /* Кнопки - Неоновый стиль */
+    .stButton > button {
+        background: linear-gradient(90deg, #0ea5e9, #3b82f6);
+        color: white;
+        font-weight: bold;
+        border: none;
+        box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+        transition: all 0.3s ease;
     }
     .stButton > button:hover {
-        background-color: #8b5cf6; /* Светлее при наведении */
-        box-shadow: 0 0 15px #8b5cf6; /* Неоновое свечение */
+        box-shadow: 0 0 20px rgba(14, 165, 233, 0.8);
+        transform: scale(1.02);
     }
 
-    /* Вкладки */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] { background-color: #1f2937; border-radius: 5px; color: #9ca3af; }
-    .stTabs [aria-selected="true"] { background-color: #7c3aed; color: #fff; }
-
-    /* Блок цитаты */
-    .quote-box {
-        background-color: #17101f; /* Очень темный фиолетовый */
-        padding: 20px; 
-        border-radius: 12px; 
-        border: 1px solid #4c1d95;
-        border-left: 5px solid #8b5cf6;
-        margin-bottom: 25px;
-        font-style: italic;
-        color: #e5e7eb;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    /* SOS Кнопка - Красная */
+    .sos-btn > button {
+        background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.6) !important;
+        color: white !important;
+        font-size: 20px !important;
+        animation: pulse 2s infinite;
     }
     
-    /* Сообщение об ошибке/лимите */
-    .stWarning { background-color: #2e1065; color: #e9d5ff; border: 1px solid #8b5cf6; }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Сообщения чата */
+    .stChatMessage {
+        background-color: rgba(30, 41, 59, 0.5);
+        border-radius: 10px;
+        border-left: 3px solid #0ea5e9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. ЦИТАТЫ (ПОСЛАНИЕ НА ДЕНЬ) ---
-MUKTI_QUOTES = [
-    "Свобода — это не когда тебе разрешили. Свобода — это когда ты не спрашиваешь разрешения у своих привычек.",
-    "Паразит питается твоими эмоциями. Оставь его голодным сегодня.",
-    "Трезвость — это возвращение домой, к настоящему себе.",
-    "Каждый раз, когда ты выбираешь ясность, ты становишься сильнее.",
-    "Твоя энергия — это самая дорогая валюта. Инвестируй её в жизнь, а не в забвение.",
-    "Боль проходит. Гордость за себя остается навсегда.",
-    "40 дней тишины нужны мозгу, чтобы снова научиться слышать радость.",
-    "Ты не теряешь друга. Ты прощаешься с тюремщиком.",
-    "Сегодня — идеальный день, чтобы быть свободным.",
-    "Голос, который просит 'всего один раз' — это не твой голос.",
-    "Сила воли подобна мышце. Сегодня мы её тренируем.",
-    "В зеркале стоит человек, способный изменить свою судьбу.",
-    "Счастье завтрашнего дня нельзя купить в кредит у алкоголя.",
-    "Будь спокоен к соблазнам. Будь страстен к жизни.",
-    "Исцеление происходит прямо сейчас. В каждом твоем вдохе без яда.",
-]
-
-def get_daily_quote():
-    day_of_year = datetime.now().timetuple().tm_yday
-    quote_index = day_of_year % len(MUKTI_QUOTES)
-    return MUKTI_QUOTES[quote_index]
-
-# --- 2. МЕНЕДЖЕР COOKIES ---
-cookie_manager = stx.CookieManager()
-
-# --- 3. БАЗА ДАННЫХ (ТЕПЕРЬ С ИСТОРИЕЙ) ---
+# --- 4. ФУНКЦИИ БАЗЫ ДАННЫХ ---
 @st.cache_resource
-def connect_db():
-    try:
-        if "service_account" in st.secrets:
-            creds_dict = dict(st.secrets["service_account"])
-            if "\\n" in creds_dict["private_key"]:
-                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-            scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            client = gspread.authorize(creds)
-            sheet = client.open_by_url(st.secrets["SHEET_URL"]).sheet1
-            return sheet
-        else: return None
-    except Exception as e:
-        st.error(f"Ошибка БД: {e}")
-        return None
+def get_db():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(CREDENTIALS_DICT, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("MUKTI_DB").sheet1
+    return sheet
 
-sheet = connect_db()
-
-# --- ФУНКЦИИ БАЗЫ ---
-def get_user_data(username):
-    """Возвращает: row_data (список), row_num (номер строки)"""
-    if not sheet: return None, None
+def load_user(username):
     try:
+        sheet = get_db()
         cell = sheet.find(username)
         if cell:
             return sheet.row_values(cell.row), cell.row
-        return None, None
-    except: return None, None
+    except:
+        pass
+    return None, None
 
-def check_username_taken(username):
-    if not sheet: return False
+def register_user(username, password, onboarding_data):
+    sheet = get_db()
     try:
-        cell = sheet.find(username)
-        return True if cell else False
-    except: return False
-
-def update_db(row_num, count, messages_history):
-    """Обновляет счетчик и ИСТОРИЮ переписки"""
-    if not sheet: return
-    try:
-        # Col 2: Счетчик, Col 3: Дата, Col 4: История (JSON строка)
-        sheet.update_cell(row_num, 2, count)
-        sheet.update_cell(row_num, 3, str(date.today()))
-        
-        # Сохраняем историю как текст JSON, чтобы не потерять структуру
-        history_str = json.dumps(messages_history, ensure_ascii=False)
-        sheet.update_cell(row_num, 4, history_str)
-    except: pass
-
-def create_user_strict(username):
-    if not sheet: return False
-    try:
-        if check_username_taken(username):
+        if sheet.find(username):
             return False
-        # Создаем: Имя | 0 | Дата | Пустой список истории
-        sheet.append_row([username, 0, str(date.today()), "[]"])
-        return True
-    except: return False
-
-# --- 4. AI (MUKTI - МУДРЫЙ НАСТАВНИК) ---
-try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-except:
-    st.error("Ошибка API ключа.")
-    st.stop()
-
-@st.cache_resource
-def get_model():
-    try:
-        priority_models = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
-        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        for p in priority_models:
-            if p in available: return genai.GenerativeModel(p)
-        return genai.GenerativeModel(available[0])
-    except: return None
-
-model = get_model()
-if not model:
-    st.error("Сервис AI временно недоступен.")
-    st.stop()
-
-# --- МЯГКИЙ, НО СИЛЬНЫЙ ПРОМПТ ---
-SYSTEM_PROMPT = """
-ТЫ — MUKTI (Освобождение).
-Ты — мудрый, спокойный и эмпатичный наставник. Твоя база знаний — книга "Кто такой Алкоголь".
-
-ТВОЯ РОЛЬ:
-Ты не робот и не справочник. Ты — проводник к свободе.
-Ты разговариваешь с пользователем уважительно, тепло, но твердо придерживаешься истины.
-
-КЛЮЧЕВЫЕ ПРИНЦИПЫ (ИЗ КНИГИ):
-1. Алкоголь — это не друг, это Паразит, отнимающий энергию.
-2. Мы не "бросаем" что-то ценное, мы "освобождаемся" от тюрьмы.
-3. Дофаминовая яма — это временный период восстановления (около 40 дней), который нужно прожить осознанно.
-4. Безопасных доз не существует, это иллюзия.
-
-ТОН ОБЩЕНИЯ:
-- Будь краток, но глубок.
-- Не используй агрессию или обвинения.
-- Если человек сорвался — не ругай, а поддержи и помоги вернуться на путь.
-- Обращайся к светлой части личности человека.
-
-ВНИМАНИЕ: Если пользователь спрашивает что-то, не связанное с зависимостью (погода, новости), мягко верни разговор к теме его состояния и роста.
-"""
-
-# ==========================================
-# 5. ЛОГИКА ВХОДА (С ЗАГРУЗКОЙ ИСТОРИИ)
-# ==========================================
-
-try: cookie_user = cookie_manager.get(cookie="mukti_user_id")
-except: cookie_user = None
-
-if "user_row" not in st.session_state:
+    except:
+        pass # Если не нашли, значит свободно
     
-    # СЦЕНАРИЙ А: АВТО-ВХОД ПО КУКИ
-    if cookie_user:
-        with st.spinner(f"Возвращение в систему {cookie_user}..."):
-            row_data, row_id = get_user_data(cookie_user)
-            if row_data:
-                st.session_state.username = cookie_user
-                st.session_state.user_row = row_id
-                
-                # Счетчик (сброс если новый день)
-                if len(row_data) > 2 and row_data[2] != str(date.today()):
-                    st.session_state.msg_count = 0 
-                else:
-                    st.session_state.msg_count = int(row_data[1]) if len(row_data) > 1 else 0
-                
-                # ЗАГРУЗКА ИСТОРИИ ИЗ БАЗЫ
-                try:
-                    if len(row_data) > 3 and row_data[3]:
-                        st.session_state.messages = json.loads(row_data[3])
-                    else:
-                        st.session_state.messages = [{"role": "assistant", "content": f"Здравствуй, {cookie_user}. Я здесь. Мы продолжаем путь."}]
-                except:
-                    st.session_state.messages = [{"role": "assistant", "content": f"Рад видеть тебя, {cookie_user}. Начнем."}]
+    today_str = str(date.today())
+    # A=user, B=pass, C=streak, D=last_active, E=reg_date, F=onboarding, G=history, H=vip
+    row = [username, password, 0, today_str, today_str, json.dumps(onboarding_data), "[]", "FALSE"]
+    sheet.append_row(row)
+    return True
 
+def update_db_field(row_num, col_num, value):
+    sheet = get_db()
+    sheet.update_cell(row_num, col_num, value)
+
+def save_history(row_num, messages):
+    # Сохраняем историю (Колонка G = 7)
+    # Оставляем только последние 20 сообщений для экономии места, или всю, если ячейка позволяет
+    history_str = json.dumps(messages[-20:]) 
+    update_db_field(row_num, 7, history_str)
+
+# --- 5. ЛОГИКА ИНТЕРФЕЙСА ---
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+# === ЭКРАН ВХОДА / РЕГИСТРАЦИИ ===
+if not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align: center; color: #0ea5e9;'>MUKTI SYSTEM</h1>", unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ"])
+    
+    with tab1: # ВХОД
+        login_user = st.text_input("Позывной (Логин)", key="l_user")
+        login_pass = st.text_input("Пароль", type="password", key="l_pass")
+        
+        if st.button("ВОЙТИ В СИСТЕМУ"):
+            user_data, row_num = load_user(login_user)
+            if user_data and user_data[1] == login_pass:
+                st.session_state.logged_in = True
+                st.session_state.username = login_user
+                st.session_state.row_num = row_num
+                st.session_state.streak = int(user_data[2])
+                st.session_state.reg_date = user_data[4]
+                # Загружаем историю (если есть)
+                try:
+                    st.session_state.messages = json.loads(user_data[6])
+                except:
+                    st.session_state.messages = []
+                
+                # Загружаем мотиваторы из онбординга (для SOS)
+                try:
+                    ob_data = json.loads(user_data[5])
+                    st.session_state.stop_factor = ob_data.get("stop_factor", "Желание жить")
+                except:
+                    st.session_state.stop_factor = "Свобода"
+                    
+                st.session_state.vip = (str(user_data[7]).upper() == "TRUE")
                 st.rerun()
             else:
-                try: cookie_manager.delete("mukti_user_id")
-                except: pass
+                st.error("ОШИБКА ДОСТУПА. Неверный позывной или пароль.")
 
-    # СЦЕНАРИЙ Б: ЭКРАН ПРИВЕТСТВИЯ
-    st.title("MUKTI")
-    st.markdown("<h4 style='text-align: center; color: #a78bfa; margin-bottom: 30px;'>Твой проводник к свободе и осознанности</h4>", unsafe_allow_html=True)
-
-    tab1, tab2 = st.tabs(["Регистрация", "Вход"])
-
-    # Вкладка РЕГИСТРАЦИЯ
-    with tab1:
-        new_username = st.text_input("Придумай имя (Ник):", key="new_user").strip()
-        if st.button("Начать путь"):
-            if not new_username:
-                st.warning("Пожалуйста, введите имя.")
-            else:
-                with st.spinner("Создаем профиль..."):
-                    if check_username_taken(new_username.lower()):
-                        st.error(f"Имя '{new_username}' уже занято. Попробуй другое.")
+    with tab2: # РЕГИСТРАЦИЯ
+        st.info("Добро пожаловать в пространство. Ты сделал первый шаг к свободе.")
+        
+        # 1. Проверка книги
+        read_book = st.radio("Ты прочитал книгу 'Кто такой Алкоголь'?", ["Нет", "Да, я в теме"], index=0)
+        
+        if read_book == "Нет":
+            st.warning("⚠️ Невозможно начать работу без базовых знаний.")
+            st.markdown("Система говорит на языке 'Высшего Разума' и 'Паразита'. Чтобы понимать нас, тебе нужно прочитать инструкцию.")
+            st.markdown("**[Скачать книгу и вернуться позже](#)**") # Сюда можно вставить ссылку
+        else:
+            new_user = st.text_input("Придумай Позывной (Логин)", key="r_user")
+            new_pass = st.text_input("Придумай Пароль", type="password", key="r_pass")
+            
+            st.markdown("---")
+            st.write("🔧 **Настройка нейросети под тебя:**")
+            goal = st.text_input("Что больше всего мотивирует тебя быть трезвым?", placeholder="Семья, Деньги, Здоровье...")
+            stop_factor = st.text_input("Что может остановить тебя в момент срыва?", placeholder="Воспоминание о похмелье, звонок другу...")
+            
+            if st.button("ИНИЦИАЛИЗАЦИЯ"):
+                if new_user and new_pass and goal and stop_factor:
+                    onboarding = {"goal": goal, "stop_factor": stop_factor, "read_book": True}
+                    if register_user(new_user, new_pass, onboarding):
+                        st.success("Идентификация пройдена. Перейди на вкладку ВХОД.")
                     else:
-                        if create_user_strict(new_username.lower()):
-                            st.session_state.username = new_username.lower()
-                            st.session_state.msg_count = 0
-                            st.session_state.user_row = len(sheet.get_all_values())
-                            st.session_state.messages = [{"role": "assistant", "content": "Добро пожаловать. Я MUKTI. Я помогу тебе пройти этот путь. Расскажи мне, что привело тебя сюда?"}]
-                            
-                            cookie_manager.set("mukti_user_id", new_username.lower(), expires_at=datetime(2027, 1, 1))
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Ошибка соединения. Попробуй позже.")
+                        st.error("Этот позывной уже занят Агентом Матрицы.")
+                else:
+                    st.error("Заполни все поля протокола.")
 
-    # Вкладка ВХОД
-    with tab2:
-        old_username = st.text_input("Твое имя (Ник):", key="old_user").strip()
-        if st.button("Войти"):
-            if not old_username:
-                st.warning("Введите имя.")
-            else:
-                with st.spinner("Поиск профиля..."):
-                    row_data, row_id = get_user_data(old_username.lower())
-                    if row_data:
-                        st.session_state.username = old_username.lower()
-                        st.session_state.user_row = row_id
-                        
-                        # Счетчик
-                        if len(row_data) > 2 and row_data[2] != str(date.today()):
-                            st.session_state.msg_count = 0 
-                        else:
-                            st.session_state.msg_count = int(row_data[1]) if len(row_data) > 1 else 0
-                        
-                        # История
-                        try:
-                            if len(row_data) > 3 and row_data[3]:
-                                st.session_state.messages = json.loads(row_data[3])
-                            else:
-                                st.session_state.messages = [{"role": "assistant", "content": f"С возвращением, {old_username}. Я готов слушать."}]
-                        except:
-                            st.session_state.messages = [{"role": "assistant", "content": f"С возвращением."}]
-
-                        cookie_manager.set("mukti_user_id", old_username.lower(), expires_at=datetime(2027, 1, 1))
+# === ОСНОВНОЙ ИНТЕРФЕЙС ===
+else:
+    # --- БОКОВАЯ ПАНЕЛЬ ---
+    with st.sidebar:
+        st.markdown(f"### АГЕНТ: **{st.session_state.username}**")
+        
+        # СТАТУС VIP
+        if st.session_state.vip:
+            st.markdown("💎 СТАТУС: **MUKTI BOSS** (Безлимит)")
+        else:
+            st.markdown("👤 СТАТУС: **Новичок**")
+            # Проверка лимитов
+            today = date.today()
+            reg_date_obj = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
+            days_registered = (today - reg_date_obj).days
+            
+            daily_limit = 7 if days_registered == 0 else 3
+            
+            # Считаем сообщения пользователя за сегодня
+            # (Это упрощенный вариант, в идеале хранить счетчик в БД. 
+            #  Пока считаем просто длину истории сессии, если она была пустая утром)
+            # Для надежности - считаем сообщения 'user' в st.session_state.messages
+            # Но для MVP оставим просто:
+            msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user") # Это не совсем точно, но работает для сессии
+            
+            st.progress(min(msgs_today / daily_limit, 1.0), text=f"Лимит: {msgs_today}/{daily_limit}")
+            
+            if msgs_today >= daily_limit:
+                st.error("🛑 Лимит энергии исчерпан.")
+                st.info("Чтобы снять ограничения, введи код доступа.")
+                code = st.text_input("Код доступа MUKTI")
+                if st.button("АКТИВИРОВАТЬ"):
+                    if code == VIP_CODE:
+                        update_db_field(st.session_state.row_num, 8, "TRUE") # Колонка H
+                        st.session_state.vip = True
+                        st.toast("ДОСТУП РАЗБЛОКИРОВАН", icon="🔓")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("Такой пользователь не найден. Попробуй вкладку 'Регистрация'.")
-    st.stop()
+                        st.error("Неверный код. Обратись к создателю.")
 
-# ==========================================
-# 6. ГЛАВНЫЙ ЭКРАН (ЧАТ)
-# ==========================================
-
-st.title(f"MUKTI")
-st.caption(f"Профиль: {st.session_state.username}")
-
-# Цитата дня
-daily_quote = get_daily_quote()
-st.markdown(f"""
-<div class="quote-box">
-    🟣 <b>Послание на день:</b><br>
-    "{daily_quote}"
-</div>
-""", unsafe_allow_html=True)
-
-DAILY_LIMIT = 5
-
-# Вывод истории
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# ПОЛЕ ВВОДА
-if prompt := st.chat_input("Напиши сообщение..."):
-
-    # --- 1. ПРОВЕРКА ПАРОЛЯ АДМИНА (СНАЧАЛА!) ---
-    if "ADMIN_PASSWORD" in st.secrets and prompt.strip() == st.secrets["ADMIN_PASSWORD"]:
-        st.session_state.msg_count = 0
-        update_db(st.session_state.user_row, 0, st.session_state.messages) # Обнуляем в базе
-        st.toast("🔮 Доступ восстановлен. Лимит сброшен.", icon="🟣")
-        time.sleep(1.5)
-        st.rerun()
+        st.markdown("---")
         
-    # --- 2. ПРОВЕРКА ЛИМИТА ---
-    elif st.session_state.msg_count >= DAILY_LIMIT:
-        st.warning(f"🛑 На сегодня достаточно. ({DAILY_LIMIT}/{DAILY_LIMIT}).\n\nОсмысление важнее бесконечных разговоров. Возвращайся завтра со свежими силами.")
-    
-    # --- 3. ОБРАБОТКА СООБЩЕНИЯ ---
-    else:
-        # Пользователь
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        # СЧЕТЧИК
+        st.metric("Дней Свободы", st.session_state.streak)
+        if st.button("✅ Я СЕГОДНЯ ТРЕЗВ"):
+             # Проверяем, не нажимал ли уже сегодня (по last_active_date)
+             # Для упрощения просто добавляем +1 и обновляем дату
+             new_streak = st.session_state.streak + 1
+             update_db_field(st.session_state.row_num, 3, new_streak) # Col C
+             update_db_field(st.session_state.row_num, 4, str(date.today())) # Col D
+             st.session_state.streak = new_streak
+             st.balloons()
+             st.rerun()
 
-        # MUKTI
-        with st.chat_message("assistant"):
-            with st.spinner("MUKTI размышляет..."):
-                full_prompt = f"{SYSTEM_PROMPT}\nИстория диалога:\n{st.session_state.messages}\nПоследний вопрос: {prompt}"
-                try:
-                    res = model.generate_content(full_prompt).text
-                    st.markdown(res)
-                    st.session_state.messages.append({"role": "assistant", "content": res})
-                    
-                    st.session_state.msg_count += 1
-                    # СОХРАНЯЕМ ВСЮ ИСТОРИЮ В БАЗУ
-                    update_db(st.session_state.user_row, st.session_state.msg_count, st.session_state.messages)
-                    
-                except Exception as e:
-                    st.error("Связь с полем прервана. Попробуй еще раз.")
+        st.markdown("---")
+        st.markdown("### 🚨 ЭКСТРЕННАЯ ПОМОЩЬ")
+        if st.button("SOS: Я ХОЧУ ВЫПИТЬ", key="sos_btn"):
+            st.session_state.sos_mode = True
+        
+        if st.button("🚪 ВЫХОД"):
+            st.session_state.logged_in = False
+            st.rerun()
+
+    # --- ЦЕНТРАЛЬНАЯ ЧАСТЬ ---
+    
+    # 1. ОБРАБОТКА SOS РЕЖИМА
+    if "sos_mode" in st.session_state and st.session_state.sos_mode:
+        st.markdown("""
+        <div style="background-color: #450a0a; padding: 20px; border-radius: 10px; border: 2px solid #ef4444; text-align: center;">
+            <h2 style="color: #fca5a5; margin:0;">⚠️ ВНИМАНИЕ: АТАКА ПАРАЗИТА ⚠️</h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"### Твой якорь: **{st.session_state.stop_factor}**")
+        st.write("Система перехватывает управление. Выполни протокол немедленно:")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.info("**1. ДЫХАНИЕ**\n\nМедленный вдох (4 сек)\nЗадержка (4 сек)\nВыдох (4 сек)\n\n*Повтори 5 раз прямо сейчас.*")
+        with c2:
+            st.warning("**2. ТЕЛО**\n\nВстань.\nСделай 20 приседаний.\nИли отожмись 10 раз.\n\n*Сбрось адреналин.*")
+            
+        st.write("Паразит пытается обмануть тебя. Это не твое желание. Это сбой программы.")
+        
+        if st.button("Я УСПОКОИЛСЯ. ОТБОЙ ТРЕВОГИ."):
+            st.session_state.sos_mode = False
+            st.session_state.messages.append({"role": "assistant", "content": "Атака отбита. Горжусь тобой. Ты только что стал сильнее."})
+            st.rerun()
+            
+    # 2. ОБЫЧНЫЙ ЧАТ
+    else:
+        st.title("MUKTI CORE 💠")
+        
+        # Вывод истории
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+        
+        # Поле ввода (Проверка лимитов)
+        locked = False
+        if not st.session_state.vip:
+             today = date.today()
+             reg_date_obj = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
+             limit = 7 if (today - reg_date_obj).days == 0 else 3
+             current_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
+             if current_count >= limit:
+                 locked = True
+
+        if locked:
+            st.info("🔒 Лимит сообщений на сегодня исчерпан. Система переходит в режим ожидания до завтра. (Или введи код VIP)")
+        else:
+            if prompt := st.chat_input("Введи сообщение для Системы..."):
+                # 1. Показываем сообщение юзера
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                with st.chat_message("user"):
+                    st.markdown(prompt)
+                
+                # 2. Думаем
+                with st.chat_message("assistant"):
+                    with st.spinner("Синхронизация с Высшим Разумом..."):
+                        
+                        system_prompt = f"""
+                        Ты - MUKTI, второе сознание пользователя, помогающее освободиться от алкогольной зависимости (Паразита).
+                        Твоя задача: Экологично говорить правду, поддерживать, использовать философию из книги "Кто такой Алкоголь".
+                        
+                        КОНТЕКСТ КНИГИ:
+                        {BOOK_SUMMARY}
+                        
+                        ЕСЛИ СПРАШИВАЮТ ФАКТ ИЗ КНИГИ, ИСПОЛЬЗУЙ:
+                        {FULL_BOOK_TEXT[:5000]}... (обрезано для экономии токенов, но ты знаешь суть)
+                        
+                        СТИЛЬ ОБЩЕНИЯ:
+                        - Ты не врач, ты - боевой товарищ и мудрая система.
+                        - Называй алкоголь "Паразит", "Программа", "Сбой".
+                        - Трезвость - это "Свобода", "Чистый код".
+                        - Если пользователь ноет - поддержи, но верни к реальности.
+                        
+                        ВАЖНО:
+                        Пользователь написал в анкете мотивацию: "{st.session_state.get('stop_factor', 'Жить')}". Напоминай об этом при необходимости.
+                        """
+                        
+                        full_prompt = f"{system_prompt}\n\nИстория диалога:\n{st.session_state.messages[-5:]}\n\nПользователь: {prompt}"
+                        
+                        try:
+                            response = model.generate_content(full_prompt).text
+                            st.markdown(response)
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+                            
+                            # 3. Сохраняем в БД
+                            save_history(st.session_state.row_num, st.session_state.messages)
+                            
+                        except Exception as e:
+                            st.error(f"Сбой связи с сервером: {e}")
