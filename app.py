@@ -15,7 +15,7 @@ except ImportError:
     BOOK_SUMMARY = "Философия освобождения от зависимости."
 
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
-# VIP_CODE удален из видимости, но логику можно оставить скрытой если нужно
+VIP_CODE = "MUKTI_BOSS" # Код для админа/покупки
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -130,6 +130,18 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #22D3EE, #8B5CF6);
     }
+    
+    /* Ссылка в VIP блоке */
+    .vip-link {
+        color: #22D3EE;
+        text-decoration: none;
+        font-weight: bold;
+        border-bottom: 1px solid #22D3EE;
+    }
+    .vip-link:hover {
+        color: #fff;
+        border-color: #fff;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -208,7 +220,7 @@ if "logged_in" not in st.session_state:
 if "onboarding_step" not in st.session_state:
     st.session_state.onboarding_step = -1
 
-# === ЭКРАН ВХОДА (ПОРТАЛ) ===
+# === ЭКРАН ВХОДА ===
 if not st.session_state.logged_in:
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -217,7 +229,6 @@ if not st.session_state.logged_in:
     
     st.markdown('<div class="glass-container">', unsafe_allow_html=True)
     
-    # 1. ВКЛАДКИ ПЕРЕИМЕНОВАНЫ
     tab1, tab2 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ"])
     
     with tab1: # ВХОД
@@ -261,7 +272,6 @@ if not st.session_state.logged_in:
         r_user = st.text_input("Новое Имя", key="r_u")
         r_pin = st.text_input("Новый PIN (4 цифры)", type="password", key="r_p", max_chars=4)
         
-        # 2. КНОПКА ПЕРЕИМЕНОВАНА
         if st.button("СОЗДАТЬ ПРОФИЛЬ", use_container_width=True):
             if r_user and len(r_pin) == 4:
                 res = register_user(r_user, r_pin)
@@ -301,30 +311,31 @@ else:
     # --- ЭТАП ОНБОРДИНГА ---
     if st.session_state.onboarding_step >= 0:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='text-align:center;'>НАСТРОЙКА</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align:center;'>ЗНАКОМСТВО</h2>", unsafe_allow_html=True)
         
         st.markdown('<div class="glass-container">', unsafe_allow_html=True)
 
         if st.session_state.onboarding_step == 0:
-            st.write(f"👋 **Приветствую, {st.session_state.username}.**")
-            st.write("Я MUKTI. Прежде чем мы начнем, скажи: ты читал книгу **'Кто такой Алкоголь'**?")
+            st.write(f"👋 **Привет, {st.session_state.username}.**")
+            st.write("Я MUKTI - модератор этого пространства, где ты обретаешь свободу от зависимости.")
+            st.write("Скажи: ты уже читал книгу **'Кто такой Алкоголь'**?")
             
             c1, c2 = st.columns(2)
-            if c1.button("ДА, Я В ТЕМЕ", use_container_width=True):
+            if c1.button("ДА, ЧИТАЛ", use_container_width=True):
                 update_onboarding_data(st.session_state.row_num, "read_book", True)
                 st.session_state.onboarding_step = 1
                 st.rerun()
             if c2.button("НЕТ, НЕ ЧИТАЛ", use_container_width=True):
-                st.info("Рекомендую прочитать. Ссылка ниже.")
+                st.info("Советую прочитать, чтобы мы понимали друг друга.")
                 st.markdown("👉 [**Скачать книгу на LitRes**](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)")
-                if st.button("Продолжить без книги", use_container_width=True):
+                if st.button("Продолжить пока так", use_container_width=True):
                     update_onboarding_data(st.session_state.row_num, "read_book", False)
                     st.session_state.onboarding_step = 1
                     st.rerun()
                     
         elif st.session_state.onboarding_step == 1:
-            st.write("🎯 **Калибровка.**")
-            st.write("Напиши в чат: **Что тебя мотивирует больше всего?** (Семья, Деньги, Здоровье...)")
+            st.write("🎯 **Цель.**")
+            st.write("Напиши мне: **Ради чего ты здесь?** (Семья, Деньги, Здоровье, просто надоело...)")
             
             if goal_input := st.chat_input("Моя цель..."):
                 update_onboarding_data(st.session_state.row_num, "goal", goal_input)
@@ -332,8 +343,8 @@ else:
                 st.rerun()
                 
         elif st.session_state.onboarding_step == 2:
-            st.write("⚓️ **Последний вопрос.**")
-            st.write("Что остановит тебя в момент срыва? Твой **'Стоп-фактор'**?")
+            st.write("⚓️ **Стоп-кран.**")
+            st.write("Что может тебя остановить, если вдруг захочется выпить?")
             
             if trigger_input := st.chat_input("Меня остановит..."):
                 data = update_onboarding_data(st.session_state.row_num, "stop_factor", trigger_input)
@@ -342,8 +353,7 @@ else:
                 # Финал онбординга
                 st.session_state.onboarding_step = -1
                 
-                # 3. ПОСЛЕ АНКЕТЫ ЗАДАЕМ ВОПРОС (ВОВЛЕЧЕНИЕ)
-                welcome_msg = "Профиль настроен. Я активировал защиту.\n\nСкажи, как твое состояние прямо сейчас? Есть ли тревога или сомнения?"
+                welcome_msg = "Профиль настроен. Я включил защиту.\nНажми кнопку **'СЕГОДНЯ ЧИСТ'** наверху, чтобы запустить счетчик свободы."
                 st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
@@ -365,14 +375,13 @@ else:
             st.markdown(f"<div style='text-align:center; margin-bottom:20px;'>Твой якорь:<br><strong style='font-size:24px; color:#22D3EE;'>{st.session_state.stop_factor}</strong></div>", unsafe_allow_html=True)
             
             c1, c2 = st.columns(2)
-            c1.info("💨 **ДЫХАНИЕ**\n\n4 сек Вдох -> 4 сек Пауза -> 4 сек Выдох.\n\nПовтори 5 раз.")
+            c1.info("💨 **ДЫХАНИЕ**\n\n4 сек Вдох - 4 сек Пауза - 4 сек Выдох.\n\nПовтори 5 раз.")
             c2.warning("⚡️ **ДЕЙСТВИЕ**\n\n20 приседаний.\n\nПрямо сейчас. Сжги адреналин.")
             
             if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
                 st.session_state.sos_mode = False
                 
-                # 4. ПОСЛЕ SOS ЗАДАЕМ ВОПРОС
-                follow_up = "Сигнал принят. Ты справился. Горжусь.\n\nРасскажи, что именно спровоцировало тягу? Мы должны знать врага в лицо."
+                follow_up = "Сигнал принят. Ты справился. Горжусь.\n\nРасскажи, что именно случилось? Откуда пришла тяга?"
                 st.session_state.messages.append({"role": "assistant", "content": follow_up})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
@@ -433,14 +442,28 @@ else:
                  msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
                  if msgs_today >= limit: locked = True
 
-            # 5. УБРАН ВВОД КОДА И НАДПИСЬ BOSS
             if locked:
                 st.markdown("""
-                <div style='text-align:center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);'>
-                    <h3 style='color: #94a3b8;'>🔒 Лимит энергии исчерпан</h3>
-                    <p>Система восстанавливается. Жду тебя завтра.</p>
+                <div class="glass-container" style="text-align:center;">
+                    <h3 style='color: #94a3b8; margin:0;'>🔒 Лимит энергии исчерпан</h3>
+                    <p style='color: #EAF0FF; font-size: 14px; margin-top: 10px;'>
+                        Напиши слово <b>MUKTI</b> Роману, чтобы продолжить общение без ограничений.
+                    </p>
+                    <a href="https://t.me/Vybornov_Roman" target="_blank" class="vip-link">👉 НАПИСАТЬ РОМАНУ</a>
+                    <br><br>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                code = st.text_input("Введи код доступа сюда:")
+                if st.button("АКТИВИРОВАТЬ КОД", use_container_width=True):
+                    if code == VIP_CODE:
+                        update_db_field(st.session_state.row_num, 8, "TRUE")
+                        st.session_state.vip = True
+                        st.success("Доступ открыт!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Неверный код.")
             else:
                 if prompt := st.chat_input("Введи сообщение..."):
                     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -451,14 +474,18 @@ else:
                         with st.spinner("Анализ..."):
                             system_prompt = f"""
                             Ты - MUKTI. Пользователь: {st.session_state.username}.
-                            Стиль: Технологичный, краткий, поддерживающий. Кибер-наставник.
+                            Твоя роль: Модератор пространства свободы. Друг, наставник.
                             
-                            ИНСТРУКЦИИ:
-                            1. Ответы краткие (3-4 предложения).
-                            2. Задавай вопросы, развивай диалог. Не давай разговору затухнуть.
-                            3. Называй алкоголь "Паразит".
+                            СТИЛЬ ОБЩЕНИЯ:
+                            1. Простой, понятный, человеческий язык. Без "зауми".
+                            2. НЕ используй слова: "протокол", "аватар", "модификация", "компенсация".
+                            3. Вместо этого говори: "привычка", "ты", "действия", "изменения".
+                            4. Алкоголь называй "Паразит".
+                            5. Используй обычное короткое тире (-) вместо длинного.
+                            6. Ответы краткие (3-4 предложения).
+                            7. Задавай вопросы, чтобы поддержать разговор.
                             
-                            БАЗА: {BOOK_SUMMARY}
+                            БАЗА ЗНАНИЙ: {BOOK_SUMMARY}
                             МОТИВАЦИЯ ЮЗЕРА: {st.session_state.get('stop_factor')}
                             """
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
