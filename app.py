@@ -8,7 +8,19 @@ import json
 import base64
 import os
 
-# --- 1. НАСТРОЙКИ ---
+# --- 1. КОНСТАНТЫ И НАСТРОЙКИ (КОНФИГУРАЦИЯ) ---
+# Лимиты
+LIMIT_NEW_USER = 7      # Сообщений в день для новичка (1-й день)
+LIMIT_OLD_USER = 3      # Сообщений в день для остальных
+HISTORY_DEPTH = 30      # Сколько сообщений помнить в истории
+
+# Настройки SOS
+SOS_BREATH_CYCLES = 5   # Циклов дыхания
+SOS_SQUATS = 20         # Приседаний
+
+# Безопасность (Ищем код в секретах, иначе ставим дефолтный)
+VIP_CODE = st.secrets.get("VIP_CODE", "MUKTI_BOSS")
+
 try:
     from book import FULL_BOOK_TEXT, BOOK_SUMMARY
 except ImportError:
@@ -16,8 +28,6 @@ except ImportError:
     BOOK_SUMMARY = "Философия освобождения от зависимости."
 
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
-VIP_CODE = "MUKTI_BOSS"
-
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # --- 2. МОЗГИ ---
@@ -37,7 +47,6 @@ model = get_model()
 # --- 3. ДИЗАЙН (NEON BLACK & BACKGROUND) ---
 st.set_page_config(page_title="MUKTI PORTAL", page_icon="💠", layout="centered")
 
-# Функция для загрузки фона
 def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
@@ -46,14 +55,12 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         return None
 
-# Пытаемся найти картинку background.jpg или background.png
 bg_file = "background.jpg"
 if not os.path.exists(bg_file):
     bg_file = "background.png" 
 
 bin_str = get_base64_of_bin_file(bg_file)
 
-# CSS СТИЛИ
 css_code = f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;700&display=swap');
@@ -69,17 +76,15 @@ css_code = f"""
         font-family: 'Manrope', sans-serif;
     }}
     
-    /* Если картинки нет, будет темный градиент (резерв) */
-    .stApp {{
-        background-color: #000000;
-    }}
+    /* Резервный фон */
+    .stApp {{ background-color: #000000; }}
 
     header {{visibility: hidden;}}
     footer {{visibility: hidden;}}
 
-    /* 2. GLASSMORPHISM (МАТОВОЕ СТЕКЛО - ТЕМНЕЕ) */
+    /* 2. GLASSMORPHISM (ТЕМНЫЙ) */
     .glass-container {{
-        background: rgba(0, 0, 0, 0.75); /* Темный фон для контраста */
+        background: rgba(0, 0, 0, 0.75);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -100,15 +105,15 @@ css_code = f"""
         transition: all 0.3s ease;
     }}
     .stTextInput > div > div > input:focus {{
-        border-color: #22D3EE !important; /* Cyan Neon */
+        border-color: #22D3EE !important;
         box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
         background: rgba(0, 0, 0, 0.8) !important;
     }}
 
-    /* 4. КНОПКИ (BLACK NEON OUTLINE) */
+    /* 4. КНОПКИ (BLACK NEON) */
     .stButton > button {{
         background-color: #000000 !important;
-        border: 2px solid #22D3EE !important; /* Неоновая обводка */
+        border: 2px solid #22D3EE !important;
         color: #22D3EE !important;
         border-radius: 14px;
         height: 55px;
@@ -119,8 +124,6 @@ css_code = f"""
         box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
         transition: all 0.4s ease;
     }}
-    
-    /* Эффект свечения при наведении */
     .stButton > button:hover {{
         background-color: #22D3EE !important;
         color: #000000 !important;
@@ -169,7 +172,6 @@ css_code = f"""
         border-bottom: 2px solid #22D3EE;
     }}
 
-    /* ТИПОГРАФИКА */
     h1 {{
         font-weight: 800;
         color: #FFFFFF;
@@ -178,15 +180,9 @@ css_code = f"""
         font-size: 3rem;
         letter-spacing: 3px;
     }}
-    h2, h3 {{
-        color: #FFFFFF;
-    }}
-    p {{
-        font-size: 1.1rem;
-        line-height: 1.6;
-    }}
+    h2, h3 {{ color: #FFFFFF; }}
+    p {{ font-size: 1.1rem; line-height: 1.6; }}
     
-    /* Ссылка VIP */
     .vip-link {{
         color: #22D3EE;
         text-decoration: none;
@@ -203,7 +199,6 @@ css_code = f"""
     }}
 </style>
 """
-# Если картинки нет, убираем background-image из стилей, чтобы не было ошибки
 if not bin_str:
     css_code = css_code.replace('background-image: url("data:image/jpg;base64,None");', 'background: radial-gradient(circle, #1a1f35 0%, #000000 100%);')
 
@@ -262,7 +257,7 @@ def update_db_field(row_num, col_num, value):
 
 def save_history(row_num, messages):
     try:
-        history_str = json.dumps(messages[-30:]) 
+        history_str = json.dumps(messages[-HISTORY_DEPTH:]) 
         update_db_field(row_num, 7, history_str)
     except: pass
 
@@ -308,8 +303,18 @@ if not st.session_state.logged_in:
                     st.session_state.username = l_user
                     st.session_state.row_num = row_num
                     st.session_state.streak = int(user_data[2]) if len(user_data) > 2 else 0
-                    st.session_state.last_active = user_data[3] if len(user_data) > 3 else str(date.today())
-                    st.session_state.reg_date = user_data[4] if len(user_data) > 4 else str(date.today())
+                    
+                    # Надежная загрузка даты
+                    today = date.today()
+                    try: 
+                        st.session_state.last_active = user_data[3] if len(user_data) > 3 else str(today)
+                        st.session_state.reg_date = user_data[4] if len(user_data) > 4 else str(today)
+                        # Тестовая проверка формата
+                        datetime.strptime(st.session_state.last_active, "%Y-%m-%d")
+                    except ValueError:
+                        st.session_state.last_active = str(today)
+                        st.session_state.reg_date = str(today)
+                        
                     st.session_state.vip = (str(user_data[7]).upper() == "TRUE") if len(user_data) > 7 else False
                     
                     try: st.session_state.messages = json.loads(user_data[6]) if len(user_data) > 6 else []
@@ -430,7 +435,7 @@ else:
         if "sos_mode" not in st.session_state: st.session_state.sos_mode = False
 
         if st.session_state.sos_mode:
-            st.markdown("""
+            st.markdown(f"""
             <div style="background: rgba(220, 38, 38, 0.2); border: 2px solid #ef4444; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 25px; backdrop-filter: blur(15px); box-shadow: 0 0 50px rgba(220,38,38, 0.5);">
                 <h2 style="color: #fca5a5; margin:0; text-shadow: 0 0 20px #ef4444; letter-spacing: 5px; font-size: 2rem;">⚠️ АТАКА ПАРАЗИТА</h2>
             </div>
@@ -439,8 +444,8 @@ else:
             st.markdown(f"<div style='text-align:center; margin-bottom:20px;'>Твой якорь:<br><strong style='font-size:28px; color:#22D3EE; text-shadow: 0 0 10px #22D3EE;'>{st.session_state.stop_factor}</strong></div>", unsafe_allow_html=True)
             
             c1, c2 = st.columns(2)
-            c1.info("💨 **ДЫХАНИЕ**\n\n4 сек Вдох - 4 сек Пауза - 4 сек Выдох.\n\nПовтори 5 раз.")
-            c2.warning("⚡️ **ДЕЙСТВИЕ**\n\n20 приседаний.\n\nПрямо сейчас. Сжги адреналин.")
+            c1.info(f"💨 **ДЫХАНИЕ**\n\n4 сек Вдох - 4 сек Пауза - 4 сек Выдох.\n\nПовтори {SOS_BREATH_CYCLES} раз.")
+            c2.warning(f"⚡️ **ДЕЙСТВИЕ**\n\n{SOS_SQUATS} приседаний.\n\nПрямо сейчас. Сжги адреналин.")
             
             if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
                 st.session_state.sos_mode = False
@@ -463,9 +468,11 @@ else:
             
             with col2:
                 today = date.today()
-                try: last_active = datetime.strptime(st.session_state.last_active, "%Y-%m-%d").date()
-                except: last_active = today
-                
+                try: 
+                    last_active = datetime.strptime(st.session_state.last_active, "%Y-%m-%d").date()
+                except ValueError:
+                    last_active = today
+                    
                 delta = (today - last_active).days
                 
                 if delta == 0 and st.session_state.streak > 0:
@@ -502,7 +509,10 @@ else:
             if not st.session_state.vip:
                  try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
                  except: reg_d = date.today()
-                 limit = 7 if (date.today() - reg_d).days == 0 else 3
+                 
+                 # ИСПОЛЬЗУЕМ КОНСТАНТЫ
+                 limit = LIMIT_NEW_USER if (date.today() - reg_d).days == 0 else LIMIT_OLD_USER
+                 
                  msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
                  if msgs_today >= limit: locked = True
 
@@ -555,7 +565,7 @@ else:
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
                             try:
-                                # ПОПЫТКА ОТПРАВКИ С АВТО-ПОВТОРОМ (RETRY LOGIC)
+                                # RETRY LOGIC (3 попытки)
                                 response_text = None
                                 for attempt in range(3):
                                     try:
@@ -570,8 +580,8 @@ else:
                                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                                     save_history(st.session_state.row_num, st.session_state.messages)
                                 else:
+                                    # Fallback to Flash
                                     try:
-                                        # Резервный канал Flash
                                         backup = genai.GenerativeModel('gemini-1.5-flash')
                                         res = backup.generate_content(full_prompt).text
                                         st.markdown(res)
