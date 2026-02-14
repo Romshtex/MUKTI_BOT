@@ -15,7 +15,7 @@ except ImportError:
     BOOK_SUMMARY = "Философия освобождения от зависимости."
 
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
-VIP_CODE = "MUKTI_BOSS"
+# VIP_CODE удален из видимости, но логику можно оставить скрытой если нужно
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -33,26 +33,22 @@ def get_model():
 
 model = get_model()
 
-# --- 3. ДИЗАЙН ИЗ ТВОЕГО ФАЙЛА (ADAPTED FOR STREAMLIT) ---
+# --- 3. ДИЗАЙН (CYBERPUNK GLASS) ---
 st.set_page_config(page_title="MUKTI PORTAL", page_icon="💠", layout="centered")
 
 st.markdown("""
 <style>
-    /* ИМПОРТ ШРИФТА MANROPE */
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600&display=swap');
 
-    /* 1. ГЛОБАЛЬНЫЙ ФОН И ШРИФТЫ */
     .stApp {
         background: radial-gradient(circle at 50% 0%, #1a1f35 0%, #070A14 60%, #000000 100%);
         color: #EAF0FF;
         font-family: 'Manrope', sans-serif;
     }
     
-    /* Скрываем стандартный хедер и футер */
     header {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* 2. СТЕКЛЯННЫЕ ПАНЕЛИ (GLASSMORPHISM) */
     .glass-container {
         background: rgba(255, 255, 255, 0.03);
         backdrop-filter: blur(20px);
@@ -64,11 +60,10 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 3. ПОЛЯ ВВОДА */
     .stTextInput > div > div > input {
         background: rgba(11, 15, 31, 0.6) !important;
         border: 1px solid rgba(160, 130, 255, 0.3) !important;
-        color: #22D3EE !important; /* Cyan text */
+        color: #22D3EE !important;
         border-radius: 12px;
         height: 50px;
         font-size: 16px;
@@ -80,9 +75,8 @@ st.markdown("""
         background: rgba(11, 15, 31, 0.9) !important;
     }
 
-    /* 4. КНОПКИ (ГРАДИЕНТ И СВЕЧЕНИЕ) */
     .stButton > button {
-        background: linear-gradient(135deg, #6366f1 0%, #8B5CF6 100%); /* Violet Gradient */
+        background: linear-gradient(135deg, #6366f1 0%, #8B5CF6 100%);
         color: white;
         border: none;
         border-radius: 14px;
@@ -98,13 +92,7 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
     }
-    
-    /* Кнопка SOS - Красная */
-    div[data-testid="column"] button {
-        /* Это применится ко всем кнопкам в колонках, но мы переопределим SOS отдельно если нужно */
-    }
 
-    /* 5. ЧАТ (СООБЩЕНИЯ) */
     .stChatMessage {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.05);
@@ -112,12 +100,10 @@ st.markdown("""
         border-radius: 18px;
         margin-bottom: 10px;
     }
-    /* Аватарки */
     .stChatMessage .stChatMessageAvatar {
         background: linear-gradient(135deg, #22D3EE, #8B5CF6);
     }
     
-    /* 6. ВКЛАДКИ (TABS) */
     .stTabs [data-baseweb="tab-list"] {
         background-color: transparent;
         border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -132,7 +118,6 @@ st.markdown("""
         border-bottom: 2px solid #22D3EE;
     }
 
-    /* Заголовки */
     h1 {
         font-weight: 800;
         background: linear-gradient(90deg, #EAF0FF, #22D3EE);
@@ -142,7 +127,6 @@ st.markdown("""
         letter-spacing: 2px;
     }
     
-    /* Прогресс бар */
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #22D3EE, #8B5CF6);
     }
@@ -192,7 +176,6 @@ def register_user(username, pin):
     except: pass
     
     today_str = str(date.today())
-    # При регистрации Streak = 0
     row = [username, pin, 0, today_str, today_str, "{}", "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
@@ -232,10 +215,10 @@ if not st.session_state.logged_in:
     st.markdown("<h1>MUKTI PORTAL</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #94a3b8; margin-bottom: 30px;'>Система освобождения сознания</p>", unsafe_allow_html=True)
     
-    # Стеклянный контейнер для входа
     st.markdown('<div class="glass-container">', unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["ВХОД", "НОВАЯ ЖИЗНЬ (РЕГИСТРАЦИЯ)"])
+    # 1. ВКЛАДКИ ПЕРЕИМЕНОВАНЫ
+    tab1, tab2 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ"])
     
     with tab1: # ВХОД
         st.write("")
@@ -246,7 +229,6 @@ if not st.session_state.logged_in:
             with st.spinner("Синхронизация..."):
                 user_data, row_num = load_user(l_user)
                 if user_data and str(user_data[1]) == str(l_pin):
-                    # === ЛОГИКА ВХОДА ===
                     st.session_state.logged_in = True
                     st.session_state.username = l_user
                     st.session_state.row_num = row_num
@@ -258,7 +240,6 @@ if not st.session_state.logged_in:
                     try: st.session_state.messages = json.loads(user_data[6]) if len(user_data) > 6 else []
                     except: st.session_state.messages = []
 
-                    # Проверяем, прошел ли онбординг
                     try:
                         ob_data = json.loads(user_data[5])
                         st.session_state.stop_factor = ob_data.get("stop_factor", "Свобода")
@@ -274,20 +255,19 @@ if not st.session_state.logged_in:
                 else:
                     st.error("Неверное Имя или PIN.")
 
-    with tab2: # РЕГИСТРАЦИЯ (АВТО-ВХОД)
+    with tab2: # РЕГИСТРАЦИЯ
         st.write("")
         st.info("Придумай Имя и PIN. Система запомнит тебя.")
         r_user = st.text_input("Новое Имя", key="r_u")
         r_pin = st.text_input("Новый PIN (4 цифры)", type="password", key="r_p", max_chars=4)
         
-        if st.button("НАЧАТЬ ПУТЬ (РЕГИСТРАЦИЯ)", use_container_width=True):
+        # 2. КНОПКА ПЕРЕИМЕНОВАНА
+        if st.button("СОЗДАТЬ ПРОФИЛЬ", use_container_width=True):
             if r_user and len(r_pin) == 4:
                 res = register_user(r_user, r_pin)
                 if res == "OK":
-                    # === АВТОМАТИЧЕСКИЙ ВХОД ПОСЛЕ РЕГИСТРАЦИИ ===
                     with st.spinner("Создание нейросвязей..."):
-                        # Сразу загружаем созданного пользователя
-                        time.sleep(1) # Даем базе секунду на запись
+                        time.sleep(1)
                         user_data, row_num = load_user(r_user)
                         
                         if user_data:
@@ -300,17 +280,15 @@ if not st.session_state.logged_in:
                             st.session_state.vip = False
                             st.session_state.messages = []
                             st.session_state.stop_factor = "Свобода"
-                            
-                            # Сразу кидаем на этап онбординга
                             st.session_state.onboarding_step = 0 
                             
                             st.success("Профиль создан! Входим...")
                             time.sleep(0.5)
                             st.rerun()
                         else:
-                            st.error("Ошибка авто-входа. Попробуй войти вручную.")
+                            st.error("Ошибка авто-входа.")
                 elif res == "TAKEN":
-                    st.error("Это Имя уже занято. Выбери другое.")
+                    st.error("Это Имя уже занято.")
                 else:
                     st.error("Ошибка соединения.")
             else:
@@ -323,14 +301,13 @@ else:
     # --- ЭТАП ОНБОРДИНГА ---
     if st.session_state.onboarding_step >= 0:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='text-align:center;'>НАСТРОЙКА ПРОТОКОЛА</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align:center;'>НАСТРОЙКА</h2>", unsafe_allow_html=True)
         
-        # Стеклянный контейнер для диалога настройки
         st.markdown('<div class="glass-container">', unsafe_allow_html=True)
 
         if st.session_state.onboarding_step == 0:
             st.write(f"👋 **Приветствую, {st.session_state.username}.**")
-            st.write("Я MUKTI. Прежде чем мы начнем перепрошивку, скажи: ты читал книгу **'Кто такой Алкоголь'**? Это база нашей работы.")
+            st.write("Я MUKTI. Прежде чем мы начнем, скажи: ты читал книгу **'Кто такой Алкоголь'**?")
             
             c1, c2 = st.columns(2)
             if c1.button("ДА, Я В ТЕМЕ", use_container_width=True):
@@ -338,7 +315,7 @@ else:
                 st.session_state.onboarding_step = 1
                 st.rerun()
             if c2.button("НЕТ, НЕ ЧИТАЛ", use_container_width=True):
-                st.info("Без теории практика слаба. Но мы начнем.")
+                st.info("Рекомендую прочитать. Ссылка ниже.")
                 st.markdown("👉 [**Скачать книгу на LitRes**](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)")
                 if st.button("Продолжить без книги", use_container_width=True):
                     update_onboarding_data(st.session_state.row_num, "read_book", False)
@@ -346,8 +323,8 @@ else:
                     st.rerun()
                     
         elif st.session_state.onboarding_step == 1:
-            st.write("🎯 **Калибровка цели.**")
-            st.write("Напиши мне в чат ниже: **Что тебя мотивирует больше всего?** (Семья, Деньги, Здоровье, Свобода...)")
+            st.write("🎯 **Калибровка.**")
+            st.write("Напиши в чат: **Что тебя мотивирует больше всего?** (Семья, Деньги, Здоровье...)")
             
             if goal_input := st.chat_input("Моя цель..."):
                 update_onboarding_data(st.session_state.row_num, "goal", goal_input)
@@ -356,15 +333,17 @@ else:
                 
         elif st.session_state.onboarding_step == 2:
             st.write("⚓️ **Последний вопрос.**")
-            st.write("Что остановит тебя в момент срыва? Твой **'Стоп-фактор'**? (Звонок, воспоминание, страх...)")
+            st.write("Что остановит тебя в момент срыва? Твой **'Стоп-фактор'**?")
             
             if trigger_input := st.chat_input("Меня остановит..."):
                 data = update_onboarding_data(st.session_state.row_num, "stop_factor", trigger_input)
                 st.session_state.stop_factor = trigger_input
                 
-                # Финал
+                # Финал онбординга
                 st.session_state.onboarding_step = -1
-                welcome_msg = "Профиль настроен. Я активировал защиту. Жми 'Сегодня чист', чтобы запустить таймер."
+                
+                # 3. ПОСЛЕ АНКЕТЫ ЗАДАЕМ ВОПРОС (ВОВЛЕЧЕНИЕ)
+                welcome_msg = "Профиль настроен. Я активировал защиту.\n\nСкажи, как твое состояние прямо сейчас? Есть ли тревога или сомнения?"
                 st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
@@ -391,7 +370,10 @@ else:
             
             if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
                 st.session_state.sos_mode = False
-                st.session_state.messages.append({"role": "assistant", "content": "Сигнал принят. Ты справился. Горжусь."})
+                
+                # 4. ПОСЛЕ SOS ЗАДАЕМ ВОПРОС
+                follow_up = "Сигнал принят. Ты справился. Горжусь.\n\nРасскажи, что именно спровоцировало тягу? Мы должны знать врага в лицо."
+                st.session_state.messages.append({"role": "assistant", "content": follow_up})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
 
@@ -399,7 +381,7 @@ else:
             # HEADER
             st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'><div style='font-weight:800; font-size:20px; color:#EAF0FF;'>MUKTI <span style='color:#22D3EE;'>//</span> ONLINE</div><div style='text-align:right; font-size:12px; color:#94a3b8;'>АГЕНТ<br><span style='color:#22D3EE;'>{st.session_state.username}</span></div></div>", unsafe_allow_html=True)
             
-            # DASHBOARD (GLASS)
+            # DASHBOARD
             st.markdown('<div class="glass-container" style="padding: 15px; margin-bottom: 20px;">', unsafe_allow_html=True)
             col1, col2, col3 = st.columns([1, 1.5, 1])
             
@@ -407,7 +389,6 @@ else:
                  st.markdown(f"<div style='text-align:center;'><div style='font-size: 10px; color: #94a3b8; letter-spacing: 2px; text-transform:uppercase;'>Свобода</div><div style='font-size: 36px; font-weight:bold; color: #fff; text-shadow: 0 0 15px rgba(34, 211, 238, 0.6);'>{st.session_state.streak}</div></div>", unsafe_allow_html=True)
             
             with col2:
-                # LOGIC BUTTON
                 today = date.today()
                 try: last_active = datetime.strptime(st.session_state.last_active, "%Y-%m-%d").date()
                 except: last_active = today
@@ -432,7 +413,6 @@ else:
                         st.rerun()
             
             with col3:
-                # Специальный стиль для кнопки SOS (красный) внутри колонки
                 if st.button("🚨 SOS", use_container_width=True):
                     st.session_state.sos_mode = True
                     st.rerun()
@@ -444,7 +424,7 @@ else:
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"])
             
-            # LIMITS
+            # LIMITS CHECK
             locked = False
             if not st.session_state.vip:
                  try: reg_d = datetime.strptime(st.session_state.reg_date, "%Y-%m-%d").date()
@@ -453,14 +433,14 @@ else:
                  msgs_today = sum(1 for m in st.session_state.messages if m["role"] == "user")
                  if msgs_today >= limit: locked = True
 
+            # 5. УБРАН ВВОД КОДА И НАДПИСЬ BOSS
             if locked:
-                st.info(f"🔒 Лимит энергии ({limit}) исчерпан.")
-                code = st.text_input("Ввести код MUKTI BOSS")
-                if st.button("АКТИВИРОВАТЬ"):
-                    if code == VIP_CODE:
-                        update_db_field(st.session_state.row_num, 8, "TRUE")
-                        st.session_state.vip = True
-                        st.rerun()
+                st.markdown("""
+                <div style='text-align:center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);'>
+                    <h3 style='color: #94a3b8;'>🔒 Лимит энергии исчерпан</h3>
+                    <p>Система восстанавливается. Жду тебя завтра.</p>
+                </div>
+                """, unsafe_allow_html=True)
             else:
                 if prompt := st.chat_input("Введи сообщение..."):
                     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -475,7 +455,7 @@ else:
                             
                             ИНСТРУКЦИИ:
                             1. Ответы краткие (3-4 предложения).
-                            2. Задавай вопросы, развивай диалог.
+                            2. Задавай вопросы, развивай диалог. Не давай разговору затухнуть.
                             3. Называй алкоголь "Паразит".
                             
                             БАЗА: {BOOK_SUMMARY}
@@ -491,7 +471,6 @@ else:
                             except Exception as e:
                                 st.error("Сбой связи.")
 
-        # FOOTER
         st.markdown("<br><br>", unsafe_allow_html=True)
         if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
              st.session_state.logged_in = False
