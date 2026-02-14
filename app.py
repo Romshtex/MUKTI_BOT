@@ -9,8 +9,8 @@ import base64
 import os
 
 # --- 1. КОНСТАНТЫ И НАСТРОЙКИ ---
-LIMIT_NEW_USER = 10     # Чуть поднял лимиты для тестов
-LIMIT_OLD_USER = 5
+LIMIT_NEW_USER = 7
+LIMIT_OLD_USER = 3
 HISTORY_DEPTH = 30
 SOS_BREATH_CYCLES = 5
 SOS_SQUATS = 20
@@ -25,21 +25,30 @@ except ImportError:
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- 2. МОЗГИ (ОБНОВЛЕННАЯ ЛОГИКА) ---
+# --- 2. МОЗГИ (УМНЫЙ ПОИСК - ВЕРНУЛИ КАК БЫЛО) ---
 @st.cache_resource
 def get_model():
-    # Пытаемся сразу подключить самую быструю и стабильную модель
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        return model
+        # 1. Спрашиваем у Гугла, что доступно для этого ключа
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # 2. Наш список приоритетов (от лучшей к простой)
+        priority_list = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
+        
+        # 3. Ищем совпадение
+        for p in priority_list:
+            if p in available_models:
+                return genai.GenerativeModel(p)
+        
+        # 4. Если ничего из списка нет, берем первую попавшуюся рабочую
+        if available_models:
+            return genai.GenerativeModel(available_models[0])
+            
     except Exception as e:
-        # Если не вышло, пробуем Pro
-        try:
-            model = genai.GenerativeModel('gemini-1.5-pro')
-            return model
-        except:
-            return None
+        return None
+    return None
 
+# Инициализируем модель ОДИН РАЗ при запуске
 model = get_model()
 
 # --- 3. ДИЗАЙН: MATRIX PREMIUM ---
@@ -92,7 +101,7 @@ css_code = f"""
         margin-bottom: 25px;
     }}
 
-    /* 3. ЗАГОЛОВОК */
+    /* 3. ЗАГОЛОВОК С ЭФФЕКТОМ */
     h1 {{
         font-family: 'Orbitron', sans-serif;
         color: #EAEAEA;
@@ -135,7 +144,7 @@ css_code = f"""
         background: rgba(0, 0, 0, 0.9) !important;
     }}
 
-    /* 5. КНОПКИ */
+    /* 5. КНОПКИ (ИСПРАВЛЕНЫ - БЕЗ КИСЛОТЫ) */
     .stButton > button {{
         background-color: transparent !important;
         border: 1px solid #00E676 !important;
@@ -545,7 +554,7 @@ else:
                     else:
                         st.error("Неверный код.")
             else:
-                if prompt := st.chat_input("Введи сообщение..."):
+                if prompt := st.chat_input("Ввод данных..."):
                     st.session_state.messages.append({"role": "user", "content": prompt})
                     with st.chat_message("user"):
                         st.markdown(prompt)
@@ -571,26 +580,29 @@ else:
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
                             try:
+                                # RETRY LOGIC (надежная, без хардкода имен)
                                 response_text = None
-                                # Попытка 1: Flash (быстро)
-                                try:
-                                    response_text = model.generate_content(full_prompt).text
-                                except Exception as e:
-                                    # Попытка 2: Pro (умно)
-                                    time.sleep(1)
+                                for attempt in range(3):
                                     try:
-                                        backup = genai.GenerativeModel('gemini-1.5-pro')
-                                        response_text = backup.generate_content(full_prompt).text
-                                    except Exception as e2:
-                                        st.error(f"ОШИБКА API: {e2}")
+                                        # Используем ту модель, которую нашли при старте (model)
+                                        # А не придумываем новые имена
+                                        if model:
+                                            response_text = model.generate_content(full_prompt).text
+                                            break
+                                        else:
+                                            raise Exception("Модель не инициализирована")
+                                    except:
+                                        time.sleep(1)
+                                        continue
                                 
                                 if response_text:
                                     st.markdown(response_text)
                                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                                     save_history(st.session_state.row_num, st.session_state.messages)
-                                
+                                else:
+                                    st.error("Сигнал потерян. Нажми Enter еще раз.")
                             except Exception as e:
-                                st.error(f"Критический сбой: {e}")
+                                st.error(f"Ошибка системы: {e}")
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
