@@ -15,7 +15,7 @@ except ImportError:
     BOOK_SUMMARY = "Философия освобождения от зависимости."
 
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
-VIP_CODE = "MUKTI_BOSS" # Код для админа/покупки
+VIP_CODE = "MUKTI_BOSS"
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -131,7 +131,6 @@ st.markdown("""
         background: linear-gradient(90deg, #22D3EE, #8B5CF6);
     }
     
-    /* Ссылка в VIP блоке */
     .vip-link {
         color: #22D3EE;
         text-decoration: none;
@@ -491,12 +490,24 @@ else:
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
                             try:
-                                response = model.generate_content(full_prompt).text
-                                st.markdown(response)
-                                st.session_state.messages.append({"role": "assistant", "content": response})
-                                save_history(st.session_state.row_num, st.session_state.messages)
+                                # ПОПЫТКА ОТПРАВКИ С АВТО-ПОВТОРОМ (RETRY LOGIC)
+                                response_text = None
+                                for attempt in range(3):
+                                    try:
+                                        response_text = model.generate_content(full_prompt).text
+                                        break
+                                    except:
+                                        time.sleep(1)
+                                        continue
+                                
+                                if response_text:
+                                    st.markdown(response_text)
+                                    st.session_state.messages.append({"role": "assistant", "content": response_text})
+                                    save_history(st.session_state.row_num, st.session_state.messages)
+                                else:
+                                    st.error("Нейросеть перегружена. Попробуй нажать Enter еще раз.")
                             except Exception as e:
-                                st.error("Сбой связи.")
+                                st.error(f"Ошибка связи: {e}")
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
