@@ -34,226 +34,115 @@ def get_model():
 model = get_model()
 
 # --- 3. ДИЗАЙН (CYBERPUNK GLASS) ---
+st.set_page_config(page_title="MUKTI PORTAL", page_icon="💠", layout="centered")
+
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600&display=swap');
 
-:root{
-  --bg0:#070A14;
-  --bg1:#0B0F1F;
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #1a1f35 0%, #070A14 60%, #000000 100%);
+        color: #EAF0FF;
+        font-family: 'Manrope', sans-serif;
+    }
+    
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
 
-  --glass:rgba(255,255,255,.08);
-  --glass2:rgba(255,255,255,.05);
+    .glass-container {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(160, 130, 255, 0.15);
+        border-radius: 22px;
+        padding: 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        margin-bottom: 20px;
+    }
 
-  --stroke:rgba(139,92,246,.35);
-  --stroke2:rgba(34,211,238,.28);
+    .stTextInput > div > div > input {
+        background: rgba(11, 15, 31, 0.6) !important;
+        border: 1px solid rgba(160, 130, 255, 0.3) !important;
+        color: #22D3EE !important;
+        border-radius: 12px;
+        height: 50px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    .stTextInput > div > div > input:focus {
+        border-color: #22D3EE !important;
+        box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+        background: rgba(11, 15, 31, 0.9) !important;
+    }
 
-  --text:#EAF0FF;
-  --muted:rgba(234,240,255,.70);
+    .stButton > button {
+        background: linear-gradient(135deg, #6366f1 0%, #8B5CF6 100%);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        height: 50px;
+        font-weight: 600;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
+    }
 
-  --violet:#8B5CF6;
-  --cyan:#22D3EE;
-  --pink:#FF4FD8;
+    .stChatMessage {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 18px;
+        margin-bottom: 10px;
+    }
+    .stChatMessage .stChatMessageAvatar {
+        background: linear-gradient(135deg, #22D3EE, #8B5CF6);
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #94a3b8;
+        font-size: 16px;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #22D3EE !important;
+        background-color: transparent !important;
+        border-bottom: 2px solid #22D3EE;
+    }
 
-  --r:22px;
-  --shadow:0 18px 60px rgba(0,0,0,.55);
-}
-
-/* Base */
-.stApp{
-  font-family:'Manrope', sans-serif;
-  color:var(--text);
-  background:
-    radial-gradient(1200px 900px at 20% 10%, rgba(139,92,246,.22), transparent 55%),
-    radial-gradient(1200px 900px at 85% 15%, rgba(34,211,238,.16), transparent 60%),
-    radial-gradient(900px 700px at 65% 92%, rgba(255,79,216,.10), transparent 60%),
-    linear-gradient(180deg, var(--bg0), var(--bg1));
-  overflow:hidden;
-}
-
-/* Hide Streamlit chrome */
-header {visibility:hidden;}
-footer {visibility:hidden;}
-#MainMenu {visibility:hidden;}
-
-/* Cyberpunk background layers */
-.stApp:before{
-  content:"";
-  position:fixed;
-  inset:-20%;
-  pointer-events:none;
-  background:
-    /* “city” vertical rhythm */
-    repeating-linear-gradient(90deg,
-      rgba(255,255,255,.05) 0 1px,
-      transparent 1px 48px),
-    /* fog beams */
-    radial-gradient(700px 900px at 18% 70%, rgba(139,92,246,.10), transparent 60%),
-    radial-gradient(700px 900px at 78% 60%, rgba(34,211,238,.08), transparent 60%),
-    radial-gradient(600px 800px at 55% 30%, rgba(255,79,216,.06), transparent 60%);
-  opacity:.85;
-  transform:rotate(-2deg) scale(1.05);
-  filter:saturate(1.1) contrast(1.05);
-  animation: drift 18s ease-in-out infinite;
-}
-
-.stApp:after{
-  content:"";
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  background:
-    /* scanlines */
-    repeating-linear-gradient(180deg,
-      rgba(255,255,255,.03) 0 1px,
-      transparent 1px 6px);
-  opacity:.18;
-  mix-blend-mode: overlay;
-  animation: scan 7s linear infinite;
-}
-
-@keyframes drift{
-  0%,100%{transform:translate3d(0,0,0) rotate(-2deg) scale(1.05)}
-  50%{transform:translate3d(-2%,1.5%,0) rotate(-2deg) scale(1.05)}
-}
-@keyframes scan{
-  0%{transform:translateY(0)}
-  100%{transform:translateY(12px)}
-}
-
-/* Glass container */
-.glass-container{
-  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.05));
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: var(--r);
-  padding: 22px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  position:relative;
-  overflow:hidden;
-}
-
-.glass-container:before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  pointer-events:none;
-  background:
-    radial-gradient(900px 260px at 20% 0%, rgba(139,92,246,.28), transparent 55%),
-    radial-gradient(700px 260px at 85% 10%, rgba(34,211,238,.20), transparent 60%);
-  opacity:.55;
-  filter: blur(6px);
-}
-
-/* Titles */
-h1{
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-align:center;
-  background: linear-gradient(90deg, #EAF0FF, var(--cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-h2,h3{ color: var(--text); }
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"]{
-  background: transparent;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-}
-.stTabs [data-baseweb="tab"]{
-  color: rgba(234,240,255,.55);
-  font-size: 15px;
-  letter-spacing: .08em;
-}
-.stTabs [aria-selected="true"]{
-  color: var(--cyan) !important;
-  background: transparent !important;
-  border-bottom: 2px solid var(--cyan);
-}
-
-/* Inputs */
-.stTextInput > div > div > input{
-  background: rgba(11,15,31,.55) !important;
-  border: 1px solid rgba(255,255,255,.14) !important;
-  color: var(--text) !important;
-  border-radius: 14px !important;
-  height: 52px;
-  font-size: 15px;
-  transition: all .25s ease;
-  box-shadow: inset 0 0 0 1px rgba(139,92,246,.08);
-}
-.stTextInput > div > div > input:focus{
-  border-color: rgba(34,211,238,.35) !important;
-  box-shadow: 0 0 0 1px rgba(34,211,238,.16), 0 0 24px rgba(34,211,238,.10);
-  background: rgba(11,15,31,.78) !important;
-}
-
-/* Buttons */
-.stButton > button{
-  background: linear-gradient(135deg, rgba(139,92,246,.85), rgba(34,211,238,.35));
-  border: 1px solid rgba(255,255,255,.14);
-  color: white;
-  border-radius: 16px;
-  height: 52px;
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  box-shadow: 0 0 0 1px rgba(139,92,246,.10), 0 18px 36px rgba(0,0,0,.40);
-  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
-}
-.stButton > button:hover{
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-  box-shadow: 0 0 0 1px rgba(34,211,238,.12), 0 22px 46px rgba(0,0,0,.42);
-}
-.stButton > button:active{
-  transform: translateY(0) scale(.99);
-}
-
-/* Chat containers */
-.stChatMessage{
-  background: rgba(0,0,0,.22) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-radius: 18px !important;
-  margin-bottom: 10px;
-  box-shadow: 0 10px 26px rgba(0,0,0,.35);
-}
-
-/* Avatar */
-.stChatMessage .stChatMessageAvatar{
-  background: linear-gradient(135deg, var(--cyan), var(--violet)) !important;
-  box-shadow: 0 0 18px rgba(34,211,238,.18);
-}
-
-/* Differentiate user/assistant a bit (Streamlit markup is limited, but we can tint generally) */
-div[data-testid="stChatMessage"][data-avatar="assistant"]{
-  border-color: rgba(139,92,246,.22) !important;
-  background: linear-gradient(135deg, rgba(139,92,246,.16), rgba(0,0,0,.22)) !important;
-}
-div[data-testid="stChatMessage"][data-avatar="user"]{
-  border-color: rgba(34,211,238,.20) !important;
-  background: linear-gradient(135deg, rgba(34,211,238,.12), rgba(0,0,0,.22)) !important;
-}
-
-/* Progress */
-.stProgress > div > div > div > div{
-  background: linear-gradient(90deg, var(--cyan), var(--violet));
-}
-
-/* Sidebar (optional - keep subtle) */
-section[data-testid="stSidebar"]{
-  background: rgba(0,0,0,.20);
-  border-right: 1px solid rgba(255,255,255,.08);
-  backdrop-filter: blur(18px);
-}
+    h1 {
+        font-weight: 800;
+        background: linear-gradient(90deg, #EAF0FF, #22D3EE);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        letter-spacing: 2px;
+    }
+    
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #22D3EE, #8B5CF6);
+    }
+    
+    .vip-link {
+        color: #22D3EE;
+        text-decoration: none;
+        font-weight: bold;
+        border-bottom: 1px solid #22D3EE;
+    }
+    .vip-link:hover {
+        color: #fff;
+        border-color: #fff;
+    }
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- 4. БАЗА ДАННЫХ ---
 @st.cache_resource
