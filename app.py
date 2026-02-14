@@ -489,25 +489,26 @@ else:
                             """
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
+                            # --- НОВЫЙ БЛОК ОТПРАВКИ С РЕЗЕРВНЫМ КАНАЛОМ ---
                             try:
-                                # ПОПЫТКА ОТПРАВКИ С АВТО-ПОВТОРОМ (RETRY LOGIC)
-                                response_text = None
-                                for attempt in range(3):
-                                    try:
-                                        response_text = model.generate_content(full_prompt).text
-                                        break
-                                    except:
-                                        time.sleep(1)
-                                        continue
-                                
-                                if response_text:
-                                    st.markdown(response_text)
-                                    st.session_state.messages.append({"role": "assistant", "content": response_text})
-                                    save_history(st.session_state.row_num, st.session_state.messages)
-                                else:
-                                    st.error("Нейросеть перегружена. Попробуй нажать Enter еще раз.")
+                                # Попытка 1: Основной канал
+                                response = model.generate_content(full_prompt)
+                                response_text = response.text
                             except Exception as e:
-                                st.error(f"Ошибка связи: {e}")
+                                # Попытка 2: Если сбой, ждем 2 секунды и пробуем Резервный канал (Flash)
+                                time.sleep(2)
+                                try:
+                                    backup_model = genai.GenerativeModel('gemini-1.5-flash')
+                                    response = backup_model.generate_content(full_prompt)
+                                    response_text = response.text
+                                except Exception as e2:
+                                    # Попытка 3: Если совсем всё плохо
+                                    response_text = "⚠️ Каналы перегружены. Подожди 5 секунд и отправь снова."
+                            
+                            # Вывод результата
+                            st.markdown(response_text)
+                            st.session_state.messages.append({"role": "assistant", "content": response_text})
+                            save_history(st.session_state.row_num, st.session_state.messages)
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
