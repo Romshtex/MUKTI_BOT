@@ -39,7 +39,7 @@ def get_model():
 
 model = get_model()
 
-# --- 3. ДИЗАЙН: MATRIX PREMIUM ---
+# --- 3. ДИЗАЙН: MATRIX PREMIUM (FIXED) ---
 st.set_page_config(page_title="MUKTI MATRIX", page_icon="🧩", layout="centered")
 
 def get_base64_of_bin_file(bin_file):
@@ -50,18 +50,17 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         return None
 
-# Ищем фон (приоритет jpg, потом png)
+# Ищем фон
 bg_file = "matrix_bg.jpg"
 if not os.path.exists(bg_file):
     bg_file = "matrix_bg.png"
 if not os.path.exists(bg_file):
-    bg_file = "background.jpg" # На случай если забыл переименовать
+    bg_file = "background.jpg" 
 
 bin_str = get_base64_of_bin_file(bg_file)
 
 css_code = f"""
 <style>
-    /* ПОДКЛЮЧЕНИЕ ШРИФТОВ: Orbitron (Заголовки) + Inter (Текст) */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;500;700&display=swap');
 
     /* 1. БАЗА */
@@ -70,7 +69,7 @@ css_code = f"""
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
-        background-color: #000000; /* Fallback */
+        background-color: #000000;
         color: #EAEAEA;
         font-family: 'Inter', sans-serif;
     }}
@@ -78,9 +77,9 @@ css_code = f"""
     header {{visibility: hidden;}}
     footer {{visibility: hidden;}}
 
-    /* 2. GLASSMORPHISM (PREMIUM DARK) */
+    /* 2. GLASSMORPHISM (DARK) */
     .glass-container {{
-        background: rgba(20, 20, 20, 0.7);
+        background: rgba(15, 15, 15, 0.85); /* Чуть плотнее фон для читаемости */
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -90,13 +89,26 @@ css_code = f"""
         margin-bottom: 25px;
     }}
 
-    /* 3. ТИПОГРАФИКА */
-    h1, h2, h3 {{
+    /* 3. ЗАГОЛОВОК С ЭФФЕКТОМ ПРИ НАВЕДЕНИИ */
+    h1 {{
         font-family: 'Orbitron', sans-serif;
         color: #EAEAEA;
         text-transform: uppercase;
-        letter-spacing: 2px;
-        text-shadow: 0 0 10px rgba(0, 230, 118, 0.2); /* Легкое зеленое свечение */
+        letter-spacing: 4px;
+        text-align: center;
+        transition: all 0.4s ease;
+        cursor: default;
+    }}
+    
+    /* ЛЕГКИЙ НЕОН ПРИ НАВЕДЕНИИ НА MUKTI */
+    h1:hover {{
+        color: #FFFFFF;
+        text-shadow: 0 0 15px rgba(0, 230, 118, 0.8), 0 0 30px rgba(0, 230, 118, 0.4);
+    }}
+
+    h2, h3 {{
+        font-family: 'Orbitron', sans-serif;
+        color: #EAEAEA;
     }}
     
     p, div, label {{
@@ -108,7 +120,7 @@ css_code = f"""
     .stTextInput > div > div > input {{
         background: rgba(10, 10, 10, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
-        color: #00E676 !important; /* Matrix Green Text */
+        color: #00E676 !important;
         border-radius: 12px;
         height: 50px;
         font-family: 'Inter', sans-serif;
@@ -121,10 +133,10 @@ css_code = f"""
         background: rgba(0, 0, 0, 0.9) !important;
     }}
 
-    /* 5. КНОПКИ (DIGITAL ZEN) */
+    /* 5. КНОПКИ (ИСПРАВЛЕНЫ - БЕЗ КИСЛОТЫ) */
     .stButton > button {{
         background-color: transparent !important;
-        border: 1px solid #00E676 !important;
+        border: 1px solid #00E676 !important; /* Тонкая зеленая рамка */
         color: #00E676 !important;
         border-radius: 12px;
         height: 50px;
@@ -133,18 +145,18 @@ css_code = f"""
         font-size: 14px;
         letter-spacing: 1.5px;
         text-transform: uppercase;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
     }}
     
+    /* При наведении - НЕ ЗАЛИВКА, А СВЕЧЕНИЕ РАМКИ */
     .stButton > button:hover {{
-        background-color: #00E676 !important;
-        color: #000000 !important;
-        box-shadow: 0 0 20px rgba(0, 255, 150, 0.4);
-        transform: translateY(-2px);
+        background-color: rgba(0, 230, 118, 0.05) !important; /* Едва заметный фон */
+        color: #FFFFFF !important; /* Текст белеет */
         border-color: #00E676 !important;
+        box-shadow: 0 0 15px rgba(0, 230, 118, 0.5); /* Мягкое свечение вокруг */
+        transform: translateY(-1px);
     }}
     
-    /* Отключенная кнопка */
     .stButton > button:disabled {{
         border-color: #333 !important;
         color: #555 !important;
@@ -152,15 +164,15 @@ css_code = f"""
         box-shadow: none !important;
     }}
 
-    /* 6. КНОПКА SOS (SYSTEM ERROR RED) */
+    /* 6. КНОПКА SOS (RED) */
     div[data-testid="column"]:nth-of-type(3) .stButton > button {{
         border-color: #FF3D00 !important;
         color: #FF3D00 !important;
     }}
     div[data-testid="column"]:nth-of-type(3) .stButton > button:hover {{
-        background-color: #FF3D00 !important;
-        color: #000000 !important;
-        box-shadow: 0 0 25px rgba(255, 61, 0, 0.5);
+        background-color: rgba(255, 61, 0, 0.1) !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 0 20px rgba(255, 61, 0, 0.6);
     }}
 
     /* 7. ЧАТ */
@@ -196,8 +208,6 @@ css_code = f"""
 
 </style>
 """
-
-# Если картинки нет, ставим черный фон
 if not bin_str:
     css_code = css_code.replace('background-image: url("data:image/jpg;base64,None");', 'background-color: #000000;')
 
@@ -278,12 +288,12 @@ if "logged_in" not in st.session_state:
 if "onboarding_step" not in st.session_state:
     st.session_state.onboarding_step = -1
 
-# === ЭКРАН ВХОДА (ПОРТАЛ) ===
+# === ЭКРАН ВХОДА ===
 if not st.session_state.logged_in:
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1>MUKTI</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; letter-spacing: 2px; font-size: 14px; opacity: 0.7;'>SYSTEM ACCESS // PORTAL</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #888; font-size: 14px; letter-spacing: 2px;'>PORTAL ACCESS</p>", unsafe_allow_html=True)
     
     st.markdown('<div class="glass-container">', unsafe_allow_html=True)
     
@@ -291,11 +301,11 @@ if not st.session_state.logged_in:
     
     with tab1: # ВХОД
         st.write("")
-        l_user = st.text_input("ИМЯ / CODENAME", key="l_u")
-        l_pin = st.text_input("PIN ACCESS", type="password", key="l_p", max_chars=4)
+        l_user = st.text_input("ИМЯ", key="l_u")
+        l_pin = st.text_input("PIN (4 цифры)", type="password", key="l_p", max_chars=4)
         
-        if st.button("CONNECT", use_container_width=True):
-            with st.spinner("INITIATING HANDSHAKE..."):
+        if st.button("ВОЙТИ", use_container_width=True):
+            with st.spinner("Синхронизация..."):
                 user_data, row_num = load_user(l_user)
                 if user_data and str(user_data[1]) == str(l_pin):
                     st.session_state.logged_in = True
@@ -330,19 +340,19 @@ if not st.session_state.logged_in:
                     
                     st.rerun()
                 else:
-                    st.error("ACCESS DENIED")
+                    st.error("Неверное Имя или PIN.")
 
     with tab2: # РЕГИСТРАЦИЯ
         st.write("")
-        st.info("Создай свою цифровую проекцию.")
+        st.info("Придумай Имя и PIN. Система запомнит тебя.")
         r_user = st.text_input("НОВОЕ ИМЯ", key="r_u")
         r_pin = st.text_input("НОВЫЙ PIN", type="password", key="r_p", max_chars=4)
         
-        if st.button("INITIALIZE PROFILE", use_container_width=True):
+        if st.button("СОЗДАТЬ ПРОФИЛЬ", use_container_width=True):
             if r_user and len(r_pin) == 4:
                 res = register_user(r_user, r_pin)
                 if res == "OK":
-                    with st.spinner("GENERATING CODE..."):
+                    with st.spinner("Создание нейросвязей..."):
                         time.sleep(1)
                         user_data, row_num = load_user(r_user)
                         
@@ -358,17 +368,18 @@ if not st.session_state.logged_in:
                             st.session_state.stop_factor = "Свобода"
                             st.session_state.onboarding_step = 0 
                             
-                            st.success("SUCCESS. LOGGING IN...")
+                            # УСПЕШНЫЙ ВХОД
+                            st.success("Профиль создан! Входим...")
                             time.sleep(0.5)
                             st.rerun()
                         else:
-                            st.error("SYSTEM ERROR")
+                            st.error("Ошибка авто-входа.")
                 elif res == "TAKEN":
-                    st.error("NAME TAKEN")
+                    st.error("Это Имя уже занято.")
                 else:
-                    st.error("CONNECTION ERROR")
+                    st.error("Ошибка соединения.")
             else:
-                st.warning("ENTER DATA")
+                st.warning("Введи Имя и 4 цифры PIN.")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -377,31 +388,32 @@ else:
     # --- ЭТАП ОНБОРДИНГА ---
     if st.session_state.onboarding_step >= 0:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"<h2 style='text-align:center;'>INITIALIZATION</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align:center;'>ЗНАКОМСТВО</h2>", unsafe_allow_html=True)
         
         st.markdown('<div class="glass-container">', unsafe_allow_html=True)
 
         if st.session_state.onboarding_step == 0:
-            st.write(f"👋 **Здравствуй, {st.session_state.username}.**")
-            st.write("Я MUKTI. Я не часть системы, я — выход из неё.")
-            st.write("Скажи: ты знаком с теорией (книга **'Кто такой Алкоголь'**)?")
+            # ВОТ ЗДЕСЬ ВОЗВРАЩЕН СТАРЫЙ ТЕКСТ
+            st.write(f"👋 **Привет, {st.session_state.username}.**")
+            st.write("Я MUKTI - модератор этого пространства, где ты обретаешь свободу от зависимости.")
+            st.write("Скажи: ты уже читал книгу **'Кто такой Алкоголь'**?")
             
             c1, c2 = st.columns(2)
-            if c1.button("ДА, ЗНАКОМ", use_container_width=True):
+            if c1.button("ДА, ЧИТАЛ", use_container_width=True):
                 update_onboarding_data(st.session_state.row_num, "read_book", True)
                 st.session_state.onboarding_step = 1
                 st.rerun()
-            if c2.button("НЕТ, НЕ ЗНАКОМ", use_container_width=True):
-                st.info("Рекомендую загрузить данные перед началом.")
-                st.markdown("👉 [**Скачать данные (LitRes)**](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)")
-                if st.button("ПРОПУСТИТЬ ЗАГРУЗКУ", use_container_width=True):
+            if c2.button("НЕТ, НЕ ЧИТАЛ", use_container_width=True):
+                st.info("Советую прочитать, чтобы мы понимали друг друга.")
+                st.markdown("👉 [**Скачать книгу на LitRes**](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)")
+                if st.button("ПРОПУСТИТЬ И ПРОДОЛЖИТЬ", use_container_width=True):
                     update_onboarding_data(st.session_state.row_num, "read_book", False)
                     st.session_state.onboarding_step = 1
                     st.rerun()
                     
         elif st.session_state.onboarding_step == 1:
             st.write("🎯 **Цель.**")
-            st.write("Какова твоя истинная мотивация? Ради чего ты выходишь из системы?")
+            st.write("Напиши мне: **Ради чего ты здесь?** (Семья, Деньги, Здоровье, просто надоело...)")
             
             if goal_input := st.chat_input("Моя цель..."):
                 update_onboarding_data(st.session_state.row_num, "goal", goal_input)
@@ -409,8 +421,8 @@ else:
                 st.rerun()
                 
         elif st.session_state.onboarding_step == 2:
-            st.write("⚓️ **Аварийный протокол.**")
-            st.write("Что вернет тебя в реальность, если программа зависимости попытается перехватить управление?")
+            st.write("⚓️ **Стоп-кран.**")
+            st.write("Что может тебя остановить, если вдруг захочется выпить?")
             
             if trigger_input := st.chat_input("Меня остановит..."):
                 data = update_onboarding_data(st.session_state.row_num, "stop_factor", trigger_input)
@@ -419,7 +431,7 @@ else:
                 # Финал онбординга
                 st.session_state.onboarding_step = -1
                 
-                welcome_msg = "Профиль создан. Защита активна.\nНажми кнопку **'СЕГОДНЯ ЧИСТ'**, чтобы подтвердить контроль."
+                welcome_msg = "Профиль настроен. Я включил защиту.\nНажми кнопку **'СЕГОДНЯ ЧИСТ'** наверху, чтобы запустить счетчик свободы."
                 st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
@@ -434,7 +446,7 @@ else:
         if st.session_state.sos_mode:
             st.markdown(f"""
             <div style="background: rgba(40, 0, 0, 0.8); border: 1px solid #FF3D00; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 25px; backdrop-filter: blur(20px);">
-                <h2 style="color: #FF3D00; margin:0; letter-spacing: 5px; font-size: 2rem;">⚠️ SYSTEM BREACH</h2>
+                <h2 style="color: #FF3D00; margin:0; letter-spacing: 5px; font-size: 2rem;">⚠️ АТАКА ПАРАЗИТА</h2>
             </div>
             """, unsafe_allow_html=True)
             
@@ -442,26 +454,26 @@ else:
             
             c1, c2 = st.columns(2)
             c1.info(f"💨 **ДЫХАНИЕ**\n\n4 сек Вдох - 4 сек Пауза - 4 сек Выдох.\n\nПовтори {SOS_BREATH_CYCLES} раз.")
-            c2.warning(f"⚡️ **ДЕЙСТВИЕ**\n\n{SOS_SQUATS} приседаний.\n\nСброс адреналина.")
+            c2.warning(f"⚡️ **ДЕЙСТВИЕ**\n\n{SOS_SQUATS} приседаний.\n\nПрямо сейчас. Сжги адреналин.")
             
             if st.button("КОНТРОЛЬ ВОССТАНОВЛЕН", use_container_width=True):
                 st.session_state.sos_mode = False
                 
-                follow_up = "Сигнал принят. Ты справился. Система стабильна.\n\nРасскажи, что спровоцировало сбой?"
+                follow_up = "Сигнал принят. Ты справился. Горжусь.\n\nРасскажи, что именно случилось? Откуда пришла тяга?"
                 st.session_state.messages.append({"role": "assistant", "content": follow_up})
                 save_history(st.session_state.row_num, st.session_state.messages)
                 st.rerun()
 
         else:
             # HEADER
-            st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;'><div style='font-family: Orbitron; font-weight:800; font-size:24px; color:#EAEAEA; letter-spacing:2px;'>MUKTI <span style='color:#00E676; font-size:16px;'>v6.0</span></div><div style='text-align:right; font-size:12px; color:#888;'>OPERATOR<br><span style='color:#00E676; font-family:Orbitron;'>{st.session_state.username}</span></div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;'><div style='font-family: Orbitron; font-weight:800; font-size:24px; color:#EAEAEA; letter-spacing:2px;'>MUKTI <span style='color:#00E676; font-size:16px;'>// ONLINE</span></div><div style='text-align:right; font-size:12px; color:#888;'>АГЕНТ<br><span style='color:#00E676; font-family:Orbitron;'>{st.session_state.username}</span></div></div>", unsafe_allow_html=True)
             
             # DASHBOARD
             st.markdown('<div class="glass-container" style="padding: 20px; margin-bottom: 25px;">', unsafe_allow_html=True)
             col1, col2, col3 = st.columns([1, 1.5, 1])
             
             with col1:
-                 st.markdown(f"<div style='text-align:center;'><div style='font-size: 10px; color: #888; letter-spacing: 2px; text-transform:uppercase;'>Days Free</div><div style='font-family: Orbitron; font-size: 42px; font-weight:800; color: #fff; text-shadow: 0 0 20px rgba(0, 230, 118, 0.4);'>{st.session_state.streak}</div></div>", unsafe_allow_html=True)
+                 st.markdown(f"<div style='text-align:center;'><div style='font-size: 10px; color: #888; letter-spacing: 2px; text-transform:uppercase;'>Свобода</div><div style='font-family: Orbitron; font-size: 42px; font-weight:800; color: #fff; text-shadow: 0 0 20px rgba(0, 230, 118, 0.4);'>{st.session_state.streak}</div></div>", unsafe_allow_html=True)
             
             with col2:
                 today = date.today()
@@ -478,7 +490,7 @@ else:
                     if st.button("✨ СЕГОДНЯ ЧИСТ", use_container_width=True):
                         if delta > 1 and st.session_state.streak > 0:
                              new_streak = 1
-                             st.toast("Цикл перезапущен.", icon="🔄")
+                             st.toast("Счетчик перезапущен.", icon="🔄")
                         else:
                              new_streak = st.session_state.streak + 1
                              st.toast("Синхронизация успешна.", icon="🔋")
@@ -515,25 +527,25 @@ else:
             if locked:
                 st.markdown("""
                 <div class="glass-container" style="text-align:center;">
-                    <h3 style='color: #888; margin:0; font-size: 16px;'>🔒 DAILY LIMIT REACHED</h3>
+                    <h3 style='color: #888; margin:0; font-size: 16px;'>🔒 Лимит энергии исчерпан</h3>
                     <p style='color: #CCCCCC; font-size: 14px; margin-top: 10px;'>
-                        Для снятия ограничений отправь <b>MUKTI</b> Роману.
+                        Напиши слово <b>MUKTI</b> Роману, чтобы продолжить общение без ограничений.
                     </p>
-                    <a href="https://t.me/Vybornov_Roman" target="_blank" style="color:#00E676; font-weight:bold; border-bottom:1px solid #00E676;">👉 TELEGRAM LINK</a>
+                    <a href="https://t.me/Vybornov_Roman" target="_blank" class="vip-link">👉 НАПИСАТЬ РОМАНУ</a>
                     <br><br>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                code = st.text_input("ACCESS CODE:")
-                if st.button("UNLOCK SYSTEM", use_container_width=True):
+                code = st.text_input("Введи код доступа сюда:")
+                if st.button("АКТИВИРОВАТЬ КОД", use_container_width=True):
                     if code == VIP_CODE:
                         update_db_field(st.session_state.row_num, 8, "TRUE")
                         st.session_state.vip = True
-                        st.success("ACCESS GRANTED")
+                        st.success("Доступ открыт!")
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("INVALID CODE")
+                        st.error("Неверный код.")
             else:
                 if prompt := st.chat_input("Ввод данных..."):
                     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -541,18 +553,19 @@ else:
                         st.markdown(prompt)
                     
                     with st.chat_message("assistant"):
-                        with st.spinner("PROCESSING..."):
+                        with st.spinner("Анализ..."):
                             system_prompt = f"""
                             Ты - MUKTI. Пользователь: {st.session_state.username}.
-                            Роль: Спокойный, уверенный проводник из "Матрицы" зависимости.
+                            Твоя роль: Модератор пространства свободы. Друг, наставник.
                             
-                            СТИЛЬ:
-                            1. Простой, но глубокий. Без пафоса.
-                            2. Избегать слов: "протокол", "аватар", "модификация".
-                            3. Использовать: "система", "привычка", "осознанность", "выход".
-                            4. Алкоголь = "Программа" или "Паразит".
-                            5. Ответы краткие (3-4 предложения).
-                            6. Всегда завершать мысль вопросом или призывом к действию.
+                            СТИЛЬ ОБЩЕНИЯ:
+                            1. Простой, понятный, человеческий язык. Без "зауми".
+                            2. НЕ используй слова: "протокол", "аватар", "модификация", "компенсация".
+                            3. Вместо этого говори: "привычка", "ты", "действия", "изменения".
+                            4. Алкоголь называй "Паразит".
+                            5. Используй обычное короткое тире (-) вместо длинного.
+                            6. Ответы краткие (3-4 предложения).
+                            7. Задавай вопросы, чтобы поддержать разговор.
                             
                             БАЗА ЗНАНИЙ: {BOOK_SUMMARY}
                             МОТИВАЦИЯ ЮЗЕРА: {st.session_state.get('stop_factor')}
@@ -560,6 +573,7 @@ else:
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
                             try:
+                                # RETRY LOGIC (3 попытки)
                                 response_text = None
                                 for attempt in range(3):
                                     try:
@@ -581,11 +595,11 @@ else:
                                         st.session_state.messages.append({"role": "assistant", "content": res})
                                         save_history(st.session_state.row_num, st.session_state.messages)
                                     except:
-                                        st.error("СБОЙ СВЯЗИ")
+                                        st.error("Сбой связи.")
                             except Exception as e:
-                                st.error(f"ERROR: {e}")
+                                st.error(f"Ошибка связи: {e}")
 
         st.markdown("<br><br>", unsafe_allow_html=True)
-        if st.sidebar.button("LOGOUT"):
+        if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
              st.session_state.logged_in = False
              st.rerun()
