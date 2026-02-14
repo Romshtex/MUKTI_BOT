@@ -9,8 +9,8 @@ import base64
 import os
 
 # --- 1. КОНСТАНТЫ И НАСТРОЙКИ ---
-LIMIT_NEW_USER = 7
-LIMIT_OLD_USER = 3
+LIMIT_NEW_USER = 10     # Чуть поднял лимиты для тестов
+LIMIT_OLD_USER = 5
 HISTORY_DEPTH = 30
 SOS_BREATH_CYCLES = 5
 SOS_SQUATS = 20
@@ -25,21 +25,24 @@ except ImportError:
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- 2. МОЗГИ ---
+# --- 2. МОЗГИ (ОБНОВЛЕННАЯ ЛОГИКА) ---
 @st.cache_resource
 def get_model():
+    # Пытаемся сразу подключить самую быструю и стабильную модель
     try:
-        available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        priority_models = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash', 'models/gemini-pro']
-        for p in priority_models:
-            if p in available: return genai.GenerativeModel(p)
-        if available: return genai.GenerativeModel(available[0])
-    except: return None
-    return None
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        return model
+    except Exception as e:
+        # Если не вышло, пробуем Pro
+        try:
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            return model
+        except:
+            return None
 
 model = get_model()
 
-# --- 3. ДИЗАЙН: MATRIX PREMIUM (FIXED) ---
+# --- 3. ДИЗАЙН: MATRIX PREMIUM ---
 st.set_page_config(page_title="MUKTI MATRIX", page_icon="🧩", layout="centered")
 
 def get_base64_of_bin_file(bin_file):
@@ -79,7 +82,7 @@ css_code = f"""
 
     /* 2. GLASSMORPHISM (DARK) */
     .glass-container {{
-        background: rgba(15, 15, 15, 0.85); /* Чуть плотнее фон для читаемости */
+        background: rgba(15, 15, 15, 0.85);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -89,7 +92,7 @@ css_code = f"""
         margin-bottom: 25px;
     }}
 
-    /* 3. ЗАГОЛОВОК С ЭФФЕКТОМ ПРИ НАВЕДЕНИИ */
+    /* 3. ЗАГОЛОВОК */
     h1 {{
         font-family: 'Orbitron', sans-serif;
         color: #EAEAEA;
@@ -100,7 +103,6 @@ css_code = f"""
         cursor: default;
     }}
     
-    /* ЛЕГКИЙ НЕОН ПРИ НАВЕДЕНИИ НА MUKTI */
     h1:hover {{
         color: #FFFFFF;
         text-shadow: 0 0 15px rgba(0, 230, 118, 0.8), 0 0 30px rgba(0, 230, 118, 0.4);
@@ -133,10 +135,10 @@ css_code = f"""
         background: rgba(0, 0, 0, 0.9) !important;
     }}
 
-    /* 5. КНОПКИ (ИСПРАВЛЕНЫ - БЕЗ КИСЛОТЫ) */
+    /* 5. КНОПКИ */
     .stButton > button {{
         background-color: transparent !important;
-        border: 1px solid #00E676 !important; /* Тонкая зеленая рамка */
+        border: 1px solid #00E676 !important;
         color: #00E676 !important;
         border-radius: 12px;
         height: 50px;
@@ -148,12 +150,11 @@ css_code = f"""
         transition: all 0.3s ease;
     }}
     
-    /* При наведении - НЕ ЗАЛИВКА, А СВЕЧЕНИЕ РАМКИ */
     .stButton > button:hover {{
-        background-color: rgba(0, 230, 118, 0.05) !important; /* Едва заметный фон */
-        color: #FFFFFF !important; /* Текст белеет */
+        background-color: rgba(0, 230, 118, 0.05) !important;
+        color: #FFFFFF !important;
         border-color: #00E676 !important;
-        box-shadow: 0 0 15px rgba(0, 230, 118, 0.5); /* Мягкое свечение вокруг */
+        box-shadow: 0 0 15px rgba(0, 230, 118, 0.5);
         transform: translateY(-1px);
     }}
     
@@ -202,7 +203,6 @@ css_code = f"""
         border-bottom: 2px solid #00E676;
     }}
     
-    /* ССЫЛКИ */
     a {{ color: #00E676; text-decoration: none; transition: 0.3s; }}
     a:hover {{ text-shadow: 0 0 10px #00E676; }}
 
@@ -368,7 +368,6 @@ if not st.session_state.logged_in:
                             st.session_state.stop_factor = "Свобода"
                             st.session_state.onboarding_step = 0 
                             
-                            # УСПЕШНЫЙ ВХОД
                             st.success("Профиль создан! Входим...")
                             time.sleep(0.5)
                             st.rerun()
@@ -393,7 +392,6 @@ else:
         st.markdown('<div class="glass-container">', unsafe_allow_html=True)
 
         if st.session_state.onboarding_step == 0:
-            # ВОТ ЗДЕСЬ ВОЗВРАЩЕН СТАРЫЙ ТЕКСТ
             st.write(f"👋 **Привет, {st.session_state.username}.**")
             st.write("Я MUKTI - модератор этого пространства, где ты обретаешь свободу от зависимости.")
             st.write("Скажи: ты уже читал книгу **'Кто такой Алкоголь'**?")
@@ -493,7 +491,7 @@ else:
                              st.toast("Счетчик перезапущен.", icon="🔄")
                         else:
                              new_streak = st.session_state.streak + 1
-                             st.toast("Синхронизация успешна.", icon="🔋")
+                             st.toast("Система обновлена.", icon="🔋")
                              
                         update_db_field(st.session_state.row_num, 3, new_streak)
                         update_db_field(st.session_state.row_num, 4, str(today))
@@ -547,7 +545,7 @@ else:
                     else:
                         st.error("Неверный код.")
             else:
-                if prompt := st.chat_input("Ввод данных..."):
+                if prompt := st.chat_input("Введи сообщение..."):
                     st.session_state.messages.append({"role": "user", "content": prompt})
                     with st.chat_message("user"):
                         st.markdown(prompt)
@@ -573,31 +571,26 @@ else:
                             full_prompt = f"{system_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                             
                             try:
-                                # RETRY LOGIC (3 попытки)
                                 response_text = None
-                                for attempt in range(3):
+                                # Попытка 1: Flash (быстро)
+                                try:
+                                    response_text = model.generate_content(full_prompt).text
+                                except Exception as e:
+                                    # Попытка 2: Pro (умно)
+                                    time.sleep(1)
                                     try:
-                                        response_text = model.generate_content(full_prompt).text
-                                        break
-                                    except:
-                                        time.sleep(1)
-                                        continue
+                                        backup = genai.GenerativeModel('gemini-1.5-pro')
+                                        response_text = backup.generate_content(full_prompt).text
+                                    except Exception as e2:
+                                        st.error(f"ОШИБКА API: {e2}")
                                 
                                 if response_text:
                                     st.markdown(response_text)
                                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                                     save_history(st.session_state.row_num, st.session_state.messages)
-                                else:
-                                    try:
-                                        backup = genai.GenerativeModel('gemini-1.5-flash')
-                                        res = backup.generate_content(full_prompt).text
-                                        st.markdown(res)
-                                        st.session_state.messages.append({"role": "assistant", "content": res})
-                                        save_history(st.session_state.row_num, st.session_state.messages)
-                                    except:
-                                        st.error("Сбой связи.")
+                                
                             except Exception as e:
-                                st.error(f"Ошибка связи: {e}")
+                                st.error(f"Критический сбой: {e}")
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         if st.sidebar.button("ВЫХОД ИЗ СИСТЕМЫ"):
