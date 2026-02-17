@@ -25,22 +25,17 @@ except ImportError:
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# --- 2. МОЗГИ (УМНЫЙ ПОИСК - ВЕРНУЛИ КАК БЫЛО) ---
+# --- 2. МОЗГИ (УМНЫЙ ПОИСК) ---
 @st.cache_resource
 def get_model():
     try:
-        # 1. Спрашиваем у Гугла, что доступно для этого ключа
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # 2. Наш список приоритетов (от лучшей к простой)
         priority_list = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
         
-        # 3. Ищем совпадение
         for p in priority_list:
             if p in available_models:
                 return genai.GenerativeModel(p)
         
-        # 4. Если ничего из списка нет, берем первую попавшуюся рабочую
         if available_models:
             return genai.GenerativeModel(available_models[0])
             
@@ -48,7 +43,6 @@ def get_model():
         return None
     return None
 
-# Инициализируем модель ОДИН РАЗ при запуске
 model = get_model()
 
 # --- 3. ДИЗАЙН: MATRIX PREMIUM ---
@@ -62,7 +56,6 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         return None
 
-# Ищем фон
 bg_file = "matrix_bg.jpg"
 if not os.path.exists(bg_file):
     bg_file = "matrix_bg.png"
@@ -144,7 +137,7 @@ css_code = f"""
         background: rgba(0, 0, 0, 0.9) !important;
     }}
 
-    /* 5. КНОПКИ (ИСПРАВЛЕНЫ - БЕЗ КИСЛОТЫ) */
+    /* 5. КНОПКИ (НЕОНОВАЯ ОБВОДКА) */
     .stButton > button {{
         background-color: transparent !important;
         border: 1px solid #00E676 !important;
@@ -495,17 +488,30 @@ else:
                     st.button("✅ ЗАЧТЕНО", disabled=True, use_container_width=True)
                 else:
                     if st.button("✨ СЕГОДНЯ ЧИСТ", use_container_width=True):
+                        # === ВОТ ЗДЕСЬ ИЗМЕНЕНИЯ (АКТИВНЫЙ ДИАЛОГ) ===
                         if delta > 1 and st.session_state.streak > 0:
                              new_streak = 1
                              st.toast("Счетчик перезапущен.", icon="🔄")
+                             # Сообщение при срыве
+                             msg = "Счетчик перезапущен. Не кори себя. Срыв — это часть пути, если сделать выводы.\n\nЧто стало причиной? Давай разберем это прямо сейчас."
                         else:
                              new_streak = st.session_state.streak + 1
-                             st.toast("Система обновлена.", icon="🔋")
+                             st.toast("Синхронизация успешна.", icon="🔋")
+                             # Сообщение при успехе
+                             if new_streak == 1:
+                                 msg = "Отсчет пошел. Это твой фундамент.\n\nРасскажи, что ты чувствуешь прямо сейчас? Есть ли тревога или ты полон решимости?"
+                             else:
+                                 msg = f"День {new_streak} зафиксирован. Ты становишься сильнее.\n\nКак прошло твое время? Были ли моменты, когда Паразит пытался атаковать?"
                              
                         update_db_field(st.session_state.row_num, 3, new_streak)
                         update_db_field(st.session_state.row_num, 4, str(today))
                         st.session_state.streak = new_streak
                         st.session_state.last_active = str(today)
+                        
+                        # Добавляем сообщение бота в чат и сохраняем
+                        st.session_state.messages.append({"role": "assistant", "content": msg})
+                        save_history(st.session_state.row_num, st.session_state.messages)
+                        
                         st.rerun()
             
             with col3:
@@ -585,7 +591,6 @@ else:
                                 for attempt in range(3):
                                     try:
                                         # Используем ту модель, которую нашли при старте (model)
-                                        # А не придумываем новые имена
                                         if model:
                                             response_text = model.generate_content(full_prompt).text
                                             break
