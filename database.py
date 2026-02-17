@@ -43,7 +43,6 @@ def register_user(username, pin):
     except: pass
     
     today = str(date.today())
-    # Структура: User, Pin, Streak, LastActive, RegDate, ProfileJson, HistoryJson, VIP
     row = [username, pin, 0, today, today, "{}", "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
