@@ -230,7 +230,7 @@ def get_onboarding_data(row_num):
 
 # --- 5. ЛОГИКА ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
-if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0 # 0=нет, 1-4=вопросы
+if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0 
 
 # === ЛЕНДИНГ И ВХОД ===
 if not st.session_state.logged_in:
@@ -286,19 +286,23 @@ if not st.session_state.logged_in:
                     st.session_state.last_active = str(date.today())
                     st.session_state.reg_date = str(date.today())
                     st.session_state.vip = False
-                    st.session_state.messages = []
                     st.session_state.user_profile = {}
+                    
+                    # === ДОБАВЛЕНО ПРИВЕТСТВИЕ ПОСЛЕ РЕГИСТРАЦИИ ===
+                    welcome_msg = "Профиль создан. Добро пожаловать в MUKTI.\n\nТвой первый шаг — активировать протокол защиты.\nНажми кнопку **'✨ СЕГОДНЯ ЧИСТ'** вверху экрана, чтобы начать."
+                    st.session_state.messages = [{"role": "assistant", "content": welcome_msg}]
+                    save_history(row_num, st.session_state.messages)
+                    
                     st.rerun()
                 else: st.error("Имя занято.")
             else: st.warning("Заполни поля.")
 
 # === ВНУТРИ СИСТЕМЫ ===
 else:
-    # SOS LOGIC (ОБНОВЛЕННАЯ)
+    # SOS LOGIC
     if "sos_mode" not in st.session_state: st.session_state.sos_mode = False
 
     if st.session_state.sos_mode:
-        # Случайный выбор одной из 3-х техник
         if "sos_technique" not in st.session_state:
             techniques = [
                 {"name": "❄️ ЛЕДЯНОЙ СБРОС", "desc": "Включи холодную воду. Подержи запястья под струей 30 секунд или умой лицо ледяной водой.\n\nЭто активирует 'рефлекс ныряльщика' и мгновенно гасит панику."},
@@ -319,7 +323,7 @@ else:
         
         if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
             st.session_state.sos_mode = False
-            del st.session_state.sos_technique # Сброс техники
+            del st.session_state.sos_technique 
             msg = "Сигнал принят. Ты справился. Горжусь.\n\nРасскажи, что именно спровоцировало тягу? Мы должны знать врага."
             st.session_state.messages.append({"role": "assistant", "content": msg})
             save_history(st.session_state.row_num, st.session_state.messages)
@@ -347,7 +351,6 @@ else:
             else:
                 if st.button("✨ СЕГОДНЯ ЧИСТ", use_container_width=True):
                     # ЛОГИКА КАЛИБРОВКИ
-                    # Если профиль пуст (нет ключа 'frequency'), запускаем калибровку
                     profile = st.session_state.get('user_profile', {})
                     if 'frequency' not in profile:
                         st.session_state.calibration_step = 1
@@ -359,7 +362,6 @@ else:
                         else:
                             first_msg = "День зафиксирован. Ты становишься сильнее. Как твое состояние?"
 
-                    # Обновляем счетчик
                     new_streak = 1 if delta > 1 and st.session_state.streak > 0 else st.session_state.streak + 1
                     update_db_field(st.session_state.row_num, 3, new_streak)
                     update_db_field(st.session_state.row_num, 4, str(today))
@@ -391,7 +393,6 @@ else:
             step = st.session_state.calibration_step
             if step > 0:
                 next_msg = ""
-                # Сохраняем ответ на ПРЕДЫДУЩИЙ вопрос
                 if step == 1:
                     update_onboarding_data(st.session_state.row_num, "frequency", prompt)
                     next_msg = "Принято. Вопрос 2.\n**В какие моменты тяга самая сильная?** (Стресс, скука, одиночество, компании?)"
@@ -406,9 +407,10 @@ else:
                     st.session_state.calibration_step = 4
                 elif step == 4:
                     update_onboarding_data(st.session_state.row_num, "state", prompt)
-                    st.session_state.user_profile = get_onboarding_data(st.session_state.row_num) # Обновляем локально
-                    next_msg = "Калибровка завершена. Профиль Врага создан. Я активировал персональный протокол защиты.\n\nЯ на связи. Если накроет — жми SOS."
-                    st.session_state.calibration_step = 0 # Конец
+                    st.session_state.user_profile = get_onboarding_data(st.session_state.row_num) 
+                    # === ФИНАЛ КАЛИБРОВКИ + ВОПРОС ===
+                    next_msg = "Данные приняты. Профиль Врага оцифрован.\n\nТеперь давай закрепим намерение. **Ради чего ты на самом деле решил освободиться?**\nКакая твоя Главная Цель, которую алкоголь у тебя крадет?"
+                    st.session_state.calibration_step = 0 # ВЫХОД В ОБЫЧНЫЙ РЕЖИМ
                 
                 with st.chat_message("assistant"):
                     st.markdown(next_msg)
@@ -417,7 +419,6 @@ else:
             
             # === ОБЫЧНЫЙ РЕЖИМ (AI) ===
             else:
-                # Проверка лимитов
                 limit = LIMIT_NEW_USER if st.session_state.streak < 3 else LIMIT_OLD_USER
                 if not st.session_state.vip and sum(1 for m in st.session_state.messages if m["role"] == "user") >= limit:
                     msg = "🔒 Лимит исчерпан. Для снятия пиши **MUKTI** Роману: t.me/Vybornov_Roman"
@@ -426,13 +427,13 @@ else:
                 else:
                     with st.chat_message("assistant"):
                         with st.spinner("PROCESSING..."):
-                            # Формируем контекст из профиля
                             profile = st.session_state.get('user_profile', {})
                             context_str = f"""
                             Профиль пользователя:
                             - Частота: {profile.get('frequency', 'Неизвестно')}
                             - Триггеры: {profile.get('triggers', 'Неизвестно')}
                             - Опыт: {profile.get('history', 'Неизвестно')}
+                            - Состояние: {profile.get('state', 'Неизвестно')}
                             """
                             
                             system_prompt = f"""
