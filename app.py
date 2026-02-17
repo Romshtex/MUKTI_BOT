@@ -24,7 +24,6 @@ except ImportError:
 def get_model():
     try:
         available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # Приоритет Flash (скорость), потом Pro
         priority = ['models/gemini-1.5-flash', 'models/gemini-1.5-pro', 'models/gemini-pro']
         for p in priority:
             if p in available: return genai.GenerativeModel(p)
@@ -32,9 +31,9 @@ def get_model():
     except: return None
 
 model = get_model()
-settings.load_css() # ЗАГРУЗКА ДИЗАЙНА
+settings.load_css() 
 
-# --- СОСТОЯНИЕ (SESSION STATE) ---
+# --- СОСТОЯНИЕ ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0
 
@@ -83,7 +82,6 @@ if not st.session_state.logged_in:
             if db.register_user(ru, rp) == "OK":
                 st.success("Готово! Входим...")
                 time.sleep(1)
-                # Авто-вход
                 udata, row = db.load_user(ru)
                 st.session_state.logged_in = True
                 st.session_state.username = ru
@@ -101,10 +99,22 @@ if not st.session_state.logged_in:
 # 2. ВНУТРИ СИСТЕМЫ
 # ==========================================
 else:
-    # --- ЭКРАН 1: ПРОВЕРКА КНИГИ (КАК РАНЬШЕ) ---
+    # --- ЛОГИКА ЛИМИТОВ (ПРОВЕРЯЕМ СРАЗУ) ---
+    limit = settings.LIMIT_NEW_USER if st.session_state.streak < 3 else settings.LIMIT_OLD_USER
+    msgs_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
+    is_locked = (not st.session_state.vip) and (msgs_count >= limit)
+
+    # --- ОТОБРАЖЕНИЕ ПЛАШКИ БЛОКИРОВКИ СВЕРХУ ---
+    if is_locked:
+        st.markdown(f"""
+        <div class="limit-alert">
+            🔒 <b>ЛИМИТ СООБЩЕНИЙ ИСЧЕРПАН</b><br>
+            <span style="font-size:12px">Чтобы продолжить, напиши <b>MUKTI</b>: <a href='https://t.me/Vybornov_Roman' target='_blank'>@Vybornov_Roman</a></span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- ЭКРАН 1: ПРОВЕРКА КНИГИ ---
     profile = st.session_state.get('user_profile', {})
-    
-    # Если в профиле нет отметки про книгу - показываем этот экран
     if 'read_book' not in profile:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<div class='glass-container' style='text-align:center;'>", unsafe_allow_html=True)
@@ -117,30 +127,32 @@ else:
             db.update_profile(st.session_state.row_num, "read_book", "Да")
             st.session_state.user_profile['read_book'] = "Да"
             st.rerun()
-            
         if c2.button("НЕТ", use_container_width=True):
-            st.info("Рекомендую прочитать. Это усилит эффект на 80%.")
+            st.info("Рекомендую прочитать. Это усилит эффект.")
             st.markdown("👉 [**Скачать на LitRes**](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)")
             if st.button("ПРОДОЛЖИТЬ БЕЗ КНИГИ", use_container_width=True):
                 db.update_profile(st.session_state.row_num, "read_book", "Нет")
                 st.session_state.user_profile['read_book'] = "Нет"
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
-        st.stop() # Останавливаем выполнение остального кода
+        st.stop()
 
     # --- ЭКРАН 2: SOS РЕЖИМ ---
     if "sos_mode" not in st.session_state: st.session_state.sos_mode = False
-    
     if st.session_state.sos_mode:
-        techs = [
-            {"name": "❄️ ЛЕДЯНОЙ СБРОС", "d": "Умой лицо ледяной водой. Это рефлекс ныряльщика - он гасит панику."},
-            {"name": "⏪ ПЕРЕМОТКА", "d": "Проиграй сценарий до похмелья. Не смотри трейлер, смотри финал."},
-            {"name": "🗣 ДИССОЦИАЦИЯ", "d": "Скажи: 'Это не я хочу. Это Паразит просит еды'."}
-        ]
-        t = random.choice(techs)
+        if "sos_technique" not in st.session_state:
+            techs = [
+                {"name": "❄️ ЛЕДЯНОЙ СБРОС", "d": "Умой лицо ледяной водой. Это рефлекс ныряльщика - он гасит панику."},
+                {"name": "⏪ ПЕРЕМОТКА", "d": "Проиграй сценарий до похмелья. Не смотри трейлер, смотри финал."},
+                {"name": "🗣 ДИССОЦИАЦИЯ", "d": "Скажи: 'Это не я хочу. Это Паразит просит еды'."}
+            ]
+            st.session_state.sos_technique = random.choice(techs)
+        
+        t = st.session_state.sos_technique
         st.markdown(f"<div style='border:1px solid red; padding:20px; border-radius:15px; background:rgba(50,0,0,0.8); text-align:center;'><h2>{t['name']}</h2><p>{t['d']}</p></div>", unsafe_allow_html=True)
         if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
             st.session_state.sos_mode = False
+            del st.session_state.sos_technique
             st.rerun()
         st.stop()
 
@@ -166,19 +178,18 @@ else:
             st.button("✅ ЗАЧТЕНО", disabled=True, use_container_width=True)
         else:
             if st.button("✨ СЕГОДНЯ ЧИСТ", use_container_width=True):
-                # ЛОГИКА НАЖАТИЯ
                 new_streak = 1 if delta > 1 and st.session_state.streak > 0 else st.session_state.streak + 1
                 db.update_field(st.session_state.row_num, 3, new_streak)
                 db.update_field(st.session_state.row_num, 4, str(today))
                 st.session_state.streak = new_streak
                 st.session_state.last_active = str(today)
                 
-                # Если нет профиля (первый раз или сброс) - включаем калибровку
+                # Если профиль пуст - запускаем калибровку
                 if 'frequency' not in st.session_state.user_profile:
                     st.session_state.calibration_step = 1
                     msg = "День зачтен. Теперь давай настроим защиту. Ответь на 4 вопроса.\n\n1. **Как часто Паразит обычно атакует?** (Каждый день, Пятница, Запои?)"
                 else:
-                    msg = "Данные обновлены. Как твое состояние сегодня?"
+                    msg = "Данные обновлены. Как твое состояние сегодня? Паразит не беспокоил?"
                 
                 st.session_state.messages.append({"role": "assistant", "content": msg})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
@@ -194,16 +205,10 @@ else:
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # ВВОД (ПРОВЕРКА ЛИМИТОВ И VIP)
-    limit = settings.LIMIT_NEW_USER if st.session_state.streak < 3 else settings.LIMIT_OLD_USER
-    msgs_count = sum(1 for m in st.session_state.messages if m["role"] == "user")
-    
-    is_locked = (not st.session_state.vip) and (msgs_count >= limit)
-    
+    # ВВОД (ЛОГИКА ПОДМЕНЫ ПОЛЕЙ)
     if is_locked:
-        # ВЕРНУЛ ПОЛЕ ВВОДА КОДА
-        st.markdown("<div class='glass-container' style='text-align:center;'>🔒 <b>Лимит исчерпан</b><br>Пиши <b>MUKTI</b>: <a href='https://t.me/Vybornov_Roman'>Роману</a></div>", unsafe_allow_html=True)
-        code_input = st.text_input("Есть код? Введи сюда:", key="vip_in")
+        # Если заблокировано - внизу ТОЛЬКО ввод кода
+        code_input = st.text_input("Введи VIP-код для разблокировки:", key="vip_in")
         if st.button("АКТИВИРОВАТЬ", use_container_width=True):
             if code_input == VIP_CODE:
                 db.update_field(st.session_state.row_num, 8, "TRUE")
@@ -213,11 +218,12 @@ else:
                 st.rerun()
             else: st.error("Неверный код")
     else:
+        # Если НЕ заблокировано - обычный чат
         if prompt := st.chat_input("..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"): st.markdown(prompt)
 
-            # --- ЛОГИКА КАЛИБРОВКИ (ВОПРОСЫ) ---
+            # КАЛИБРОВКА
             step = st.session_state.calibration_step
             if step > 0:
                 resp = ""
@@ -243,11 +249,10 @@ else:
                 st.session_state.messages.append({"role": "assistant", "content": resp})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
 
-            # --- ЛОГИКА AI ОТВЕТА ---
+            # AI ОТВЕТ
             else:
                 with st.chat_message("assistant"):
                     with st.spinner("..."):
-                        # Берем промпт из settings.py
                         sys_prompt = settings.get_system_prompt(
                             st.session_state.username, 
                             st.session_state.user_profile, 
@@ -255,7 +260,6 @@ else:
                         )
                         full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
                         
-                        # Retry
                         txt = None
                         for i in range(3):
                             if model:
