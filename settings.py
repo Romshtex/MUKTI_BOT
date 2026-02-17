@@ -8,9 +8,8 @@ LIMIT_OLD_USER = 5
 HISTORY_DEPTH = 30
 VIP_CODE_DEFAULT = "MUKTI_BOSS"
 
-# --- МОЗГИ (СИСТЕМНЫЙ ПРОМПТ - РАСШИРЕННАЯ ВЕРСИЯ) ---
+# --- МОЗГИ (СИСТЕМНЫЙ ПРОМПТ) ---
 def get_system_prompt(username, profile, book_summary):
-    # Формируем портрет пользователя из базы
     context = f"""
     ДОСЬЕ ПАРТНЕРА:
     - Имя: {username}
@@ -18,7 +17,7 @@ def get_system_prompt(username, profile, book_summary):
     - Режим атак (частота): {profile.get('frequency', 'Нет данных')}
     - Триггеры (ловушки): {profile.get('triggers', 'Нет данных')}
     - Боевой опыт: {profile.get('history', 'Нет данных')}
-    - Текущий статус: {profile.get('state', 'Нет данных')}
+    - Текущее состояние: {profile.get('state', 'Нет данных')}
     """
 
     return f"""
@@ -57,6 +56,7 @@ def load_css():
     if not os.path.exists(bg_file): bg_file = "background.jpg"
     bin_str = get_base64(bg_file)
 
+    # ВАЖНО: Во всех CSS стилях ниже фигурные скобки удвоены {{ }}
     css = f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;500;700&display=swap');
@@ -73,7 +73,7 @@ def load_css():
         
         header, footer {{visibility: hidden;}}
         
-        /* КОНТЕЙНЕРЫ (СТЕКЛО) */
+        /* КОНТЕЙНЕРЫ */
         .glass-container {{
             background: rgba(15, 15, 15, 0.9);
             backdrop-filter: blur(20px);
@@ -115,8 +115,8 @@ def load_css():
         /* ЧАТ */
         .stChatMessage {{ background: rgba(30,30,30,0.5); border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); }}
         
-        /* УВЕДОМЛЕНИЕ О ЛИМИТЕ (КРАСНОЕ) */
-        .limit-alert {
+        /* УВЕДОМЛЕНИЕ О ЛИМИТЕ (КРАСНОЕ) - ВОТ ЗДЕСЬ БЫЛА ОШИБКА, ТЕПЕРЬ СКОБКИ ДВОЙНЫЕ */
+        .limit-alert {{
             border: 1px solid #FF3D00;
             background: rgba(50, 0, 0, 0.9);
             color: #FF3D00;
@@ -125,7 +125,7 @@ def load_css():
             text-align: center;
             font-family: 'Orbitron', sans-serif;
             margin-bottom: 20px;
-        }
+        }}
         
         a {{ color: #00E676 !important; text-decoration: none; font-weight: bold; }}
     </style>
