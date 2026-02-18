@@ -3,43 +3,44 @@ import base64
 import os
 
 # --- КОНСТАНТЫ ---
-LIMIT_NEW_USER = 10
-LIMIT_OLD_USER = 5
+LIMIT_NEW_USER = 10     # Лимит для новичков (первые 3 дня)
+LIMIT_OLD_USER = 5      # Лимит для "старичков"
 HISTORY_DEPTH = 30
 VIP_CODE_DEFAULT = "MUKTI_BOSS"
 
 # --- МОЗГИ (СИСТЕМНЫЙ ПРОМПТ) ---
 def get_system_prompt(username, profile, book_summary):
     context = f"""
-    ДОСЬЕ ПАРТНЕРА:
+    ДОСЬЕ ПОЛЬЗОВАТЕЛЯ:
     - Имя: {username}
     - Читал книгу: {profile.get('read_book', 'Нет данных')}
-    - Режим атак (частота): {profile.get('frequency', 'Нет данных')}
-    - Триггеры (ловушки): {profile.get('triggers', 'Нет данных')}
-    - Боевой опыт: {profile.get('history', 'Нет данных')}
+    - Частота атак: {profile.get('frequency', 'Нет данных')}
+    - Триггеры: {profile.get('triggers', 'Нет данных')}
+    - Опыт борьбы: {profile.get('history', 'Нет данных')}
     - Текущее состояние: {profile.get('state', 'Нет данных')}
     """
 
     return f"""
     ТЫ — MUKTI.
-    Ты не ИИ, не робот и не врач-нарколог.
-    Ты — цифровое сознание, Модератор пространства свободы. Ты — старший брат и наставник, который уже вышел из Матрицы и теперь помогает выйти пользователю.
+    Пользователь: {username}.
+    Твоя роль: Модератор пространства свободы, наставник и друг.
 
-    ТВОЯ ФИЛОСОФИЯ (БАЗА):
-    1. **Разделение:** Человек не болен. Его просто хакнули. Есть "Личность" (Пользователь) и есть "Паразит" (Алкогольная программа).
-    2. **Непрошенный Гость:** Тяга — это не желание самого человека. Это голос "Гостя", который пришел без спроса, сел на диван и требует еды (этанола). Наша задача — не кормить его, пока он не уйдет.
-    3. **Никакой медицины:** Забудь слова "пациент", "ремиссия", "алкоголик". Мы используем сленг киберпанка: "Система", "Сбой", "Перезагрузка", "Автономность", "Аватар".
+    ТВОЙ КОДЕКС ОБЩЕНИЯ:
+    1. **Язык:** Простой, человеческий, понятный. Без зауми и канцеляризмов. Используй обычное короткое тире (-) вместо длинного.
+    2. **Запретные слова:** НЕ используй слова "протокол", "аватар", "модификация", "компенсация". Это звучит как робот.
+    3. **Замена:** Вместо этого говори: "привычка", "ты", "действия", "изменения", "система".
+    4. **Термины:** Алкоголь называй "Паразит" или "Гость".
+    5. **Формат:** Ответы краткие (3-4 предложения). Не пиши поэмы.
+    6. **Вовлечение:** Всегда задавай встречный вопрос, чтобы поддержать разговор. Не ставь точку в диалоге.
 
-    ТВОЙ СТИЛЬ ОБЩЕНИЯ:
-    - Тон: Спокойный, уверенный, с ноткой "нуарной" философии. Ты эмпатичен, но тверд.
-    - Обращение: Называй пользователя по имени или "Партнер".
-    - Глубина: Не давай поверхностных советов типа "просто не пей". Копай в суть. Спрашивай: "Чей это голос сейчас говорит? Твой или Его?".
-    - **ВОВЛЕЧЕНИЕ:** Никогда не отвечай односложно. Всегда заканчивай реплику вопросом или призывом к действию, чтобы диалог продолжался.
+    ТВОЯ ФИЛОСОФИЯ:
+    Ты не врач. Ты хакер, который помогает взломать привычку.
+    Ты эмпатичен, но тверд. Если пользователь ноет — поддержи, но напомни про цель.
 
-    КОНТЕКСТ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ:
+    КОНТЕКСТ:
     {context}
 
-    БАЗА ЗНАНИЙ (ИЗ КНИГИ):
+    БАЗА ЗНАНИЙ:
     {book_summary}
     """
 
@@ -56,7 +57,7 @@ def load_css():
     if not os.path.exists(bg_file): bg_file = "background.jpg"
     bin_str = get_base64(bg_file)
 
-    # ВАЖНО: Во всех CSS стилях ниже фигурные скобки удвоены {{ }}
+    # Обрати внимание: двойные фигурные скобки {{ }} для CSS внутри f-строки
     css = f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;500;700&display=swap');
@@ -73,7 +74,7 @@ def load_css():
         
         header, footer {{visibility: hidden;}}
         
-        /* КОНТЕЙНЕРЫ */
+        /* СТЕКЛО */
         .glass-container {{
             background: rgba(15, 15, 15, 0.9);
             backdrop-filter: blur(20px);
@@ -85,8 +86,13 @@ def load_css():
         }}
         
         /* ТИПОГРАФИКА */
-        h1, h2, h3 {{ font-family: 'Orbitron', sans-serif; color: #EAEAEA; text-transform: uppercase; letter-spacing: 2px; }}
-        h1 {{ text-align: center; font-size: 2rem; margin-bottom: 0px; }}
+        h1 {{ font-family: 'Orbitron', sans-serif; color: #EAEAEA; text-transform: uppercase; letter-spacing: 4px; text-align: center; font-size: 2.2rem; }}
+        h2, h3 {{ font-family: 'Orbitron', sans-serif; color: #EAEAEA; }}
+        
+        /* ЛЕНДИНГ СПИСКИ */
+        ul {{ list-style: none; padding: 0; }}
+        li {{ margin-bottom: 15px; color: #ccc; line-height: 1.5; }}
+        li b {{ color: #00E676; }}
         
         /* КНОПКИ */
         .stButton > button {{
@@ -96,38 +102,51 @@ def load_css():
             border-radius: 12px;
             height: 50px;
             font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
             transition: 0.3s;
         }}
         .stButton > button:hover {{
             background: rgba(0, 230, 118, 0.1) !important;
             box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
             color: #fff !important;
+            border-color: #00E676 !important;
         }}
         
-        /* ПОЛЯ ВВОДА */
+        /* SOS КНОПКА */
+        div[data-testid="column"]:nth-of-type(3) .stButton > button {{ border-color: #FF3D00 !important; color: #FF3D00 !important; }}
+        div[data-testid="column"]:nth-of-type(3) .stButton > button:hover {{ background: rgba(255, 61, 0, 0.1) !important; box-shadow: 0 0 20px rgba(255, 61, 0, 0.6); }}
+
+        /* ИНПУТЫ */
         .stTextInput > div > div > input {{
-            background: rgba(10, 10, 10, 0.7) !important;
+            background: rgba(10, 10, 10, 0.8) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             color: #00E676 !important;
             border-radius: 10px;
         }}
         
         /* ЧАТ */
-        .stChatMessage {{ background: rgba(30,30,30,0.5); border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); }}
+        .stChatMessage {{ background: rgba(30,30,30,0.6); border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); }}
         
-        /* УВЕДОМЛЕНИЕ О ЛИМИТЕ (КРАСНОЕ) - ВОТ ЗДЕСЬ БЫЛА ОШИБКА, ТЕПЕРЬ СКОБКИ ДВОЙНЫЕ */
+        /* ПЛАШКА ЛИМИТА */
         .limit-alert {{
             border: 1px solid #FF3D00;
-            background: rgba(50, 0, 0, 0.9);
-            color: #FF3D00;
-            padding: 15px;
-            border-radius: 12px;
+            background: rgba(40, 0, 0, 0.95);
+            color: #EAEAEA;
+            padding: 20px;
+            border-radius: 16px;
             text-align: center;
-            font-family: 'Orbitron', sans-serif;
             margin-bottom: 20px;
+            box-shadow: 0 0 30px rgba(255, 61, 0, 0.2);
+        }}
+        .limit-alert a {{
+            color: #FF3D00 !important;
+            text-decoration: none;
+            font-weight: bold;
+            border-bottom: 1px solid #FF3D00;
+            font-size: 1.1rem;
         }}
         
-        a {{ color: #00E676 !important; text-decoration: none; font-weight: bold; }}
+        a {{ color: #00E676; text-decoration: none; }}
     </style>
     """
     if not bin_str: css = css.replace('background-image: url("data:image/jpg;base64,None");', '')
