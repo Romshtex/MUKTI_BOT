@@ -36,249 +36,271 @@ settings.load_css()
 # --- СОСТОЯНИЕ ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0
+if "current_view" not in st.session_state: st.session_state.current_view = "chat"
 
 # ==========================================
-# 1. ЛЕНДИНГ И ВХОД
+# ФУНКЦИЯ: ИНТЕРФЕЙС ДНЕВНИКА
+# ==========================================
+def render_diary():
+    st.markdown("<h2 style='text-align: center; color: #00E676;'>ДНЕВНИК СВОБОДЫ</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #A0A0A0;'>Алкоголь живет в тумане. Здесь мы включаем свет.</p>", unsafe_allow_html=True)
+    
+    tab_mirror, tab_energy, tab_matrix, tab_sos = st.tabs(["🪞 ЗЕРКАЛО", "⚡ ЭНЕРГИЯ", "📊 МАТРИЦА", "🚨 SOS"])
+    
+    # --- ВКЛАДКА 1: ЗЕРКАЛО ---
+    with tab_mirror:
+        st.markdown("### Взлом системы (Анализ атаки Гостя)")
+        with st.form("mirror_form"):
+            context = st.text_input("Контекст (Где ты был? Что делал?)")
+            trick = st.text_area("Трюк Гостя (Что он тебе говорил/обещал?)")
+            intensity = st.slider("Интенсивность тяги (1 - шепот, 10 - крик)", 1, 10, 5)
+            action = st.selectbox("Чем перехватил импульс?", 
+                                  ["Вода + дыхание", "Прогулка", "Фокус на другом", "Написал в чат", "Другое"])
+            win_phrase = st.text_input("Какая мысль сработала лучше всего?")
+            
+            submit_mirror = st.form_submit_button("💾 СОХРАНИТЬ ЛОГ")
+            if submit_mirror:
+                st.success("Лог Зеркала успешно загружен в Матрицу! (Пока это просто тест дизайна)")
+
+    # --- ВКЛАДКА 2: ЭНЕРГИЯ ---
+    with tab_energy:
+        st.markdown("### Регенерация Аватара")
+        with st.form("energy_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                sleep = st.number_input("Сон (часов)", min_value=0.0, max_value=24.0, value=7.0, step=0.5)
+                energy_level = st.select_slider("Уровень энергии", options=["Истощен", "Слабость", "Норма", "Заряжен", "Мощь"])
+            with col2:
+                money_saved = st.number_input("Сохранено денег (₽)", min_value=0, step=100)
+                time_saved = st.number_input("Возвращено времени (ч)", min_value=0.0, step=0.5)
+                
+            small_win = st.text_input("Маленькая победа за сегодня")
+            submit_energy = st.form_submit_button("🔋 ЗАРЯДИТЬ БАТАРЕИ")
+            if submit_energy:
+                st.success("Параметры энергии обновлены! (Пока это просто тест дизайна)")
+
+    # --- ВКЛАДКА 3: МАТРИЦА ---
+    with tab_matrix:
+        st.markdown("### Панель Наблюдателя")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Дней Свободы", "12", delta="+1 день")
+        col2.metric("Сохранено денег", "15 400 ₽", delta="+800 ₽")
+        col3.metric("Уровень Сознания", "ПРОБУЖДЕНИЕ")
+        
+        st.progress(12) 
+        st.markdown("**Цель:** 100 дней (Процесс дефрагментации мозга)")
+
+    # --- ВКЛАДКА 4: SOS ---
+    with tab_sos:
+        st.markdown("<h3 style='color: #FF3D00;'>🚨 ЭКСТРЕННЫЙ ПЕРЕХВАТ</h3>", unsafe_allow_html=True)
+        st.warning("**Задача:** Не «победить», а сорвать сценарий. Тяга длится максимум 10-15 минут.")
+        
+        st.markdown("#### Фильтр реальности:")
+        st.checkbox("Если я выпью — что будет через 1 час?")
+        st.checkbox("Если я НЕ выпью — что будет через 1 час?")
+        
+        st.markdown("#### Быстрое действие (Выбери одно на 10 минут):")
+        st.radio("Доступные инструменты:", 
+                 ["💧 Выпить стакан воды и сделать 10 глубоких вдохов", 
+                  "🚶‍♂️ Выйти на улицу (без телефона) на 10 минут", 
+                  "🚿 Холодная вода на запястья / лицо",
+                  "✍️ Записать мысли в 'Зеркало'"])
+        if st.button("⚡ АКТИВИРОВАТЬ ЗАЩИТУ"):
+            st.info("Засеки 10 минут. Если не отпустит - возвращайся за новым действием.")
+
+
+# ==========================================
+# АВТОРИЗАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
-    st.markdown("<br><h1>MUKTI</h1>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align:center; color:#00E676; margin-bottom:30px; letter-spacing:1px;'>Твой персональный ИИ-ассистент для выхода из зависимости</div>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #00E676;'>MUKTI</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы зависимости</p>", unsafe_allow_html=True)
     
-    st.markdown("""
-    <div class="glass-container">
-        <ul>
-            <li><b>💠 Интеллект</b><br>Не просто трекер, а диалог с понимающим ассистентом и наставником 24/7</li>
-            <li><b>🛡 Защита</b><br>Кнопка SOS и нейро-техники сброса тяги: от "ледяного шока" до перепрошивки триггеров</li>
-            <li><b>🧠 Философия</b><br>Основано на методике разделения Личности и "Паразита". Ты — это не твой мозг</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    tab1, tab2 = st.tabs(["ВХОД В СИСТЕМУ", "СОЗДАТЬ АККАУНТ"])
+    tab1, tab2 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ"])
     
     with tab1:
-        lu = st.text_input("ИМЯ", key="l_u")
-        lp = st.text_input("PIN", type="password", key="l_p", max_chars=4)
-        if st.button("ВОЙТИ", use_container_width=True):
-            udata, row = db.load_user(lu)
-            if udata and str(udata[1]) == str(lp):
-                st.session_state.logged_in = True
-                st.session_state.username = lu
-                st.session_state.row_num = row
-                st.session_state.streak = int(udata[2])
-                st.session_state.last_active = udata[3]
-                st.session_state.reg_date = udata[4]
-                st.session_state.vip = (str(udata[7]).upper() == "TRUE") if len(udata)>7 else False
-                try: st.session_state.messages = json.loads(udata[6])
-                except: st.session_state.messages = []
-                st.session_state.user_profile = db.get_profile(row)
-                st.rerun()
-            else: st.error("Неверный вход.")
+        with st.form("login_form"):
+            user_in = st.text_input("Имя Аватара").strip().lower()
+            pin_in = st.text_input("PIN-код (4 цифры)", type="password").strip()
+            if st.form_submit_button("ВОЙТИ"):
+                if user_in and pin_in:
+                    row_data, r_num = db.load_user(user_in)
+                    if row_data and row_data[1] == pin_in:
+                        st.session_state.logged_in = True
+                        st.session_state.username = user_in
+                        st.session_state.row_num = r_num
+                        st.session_state.is_vip = (len(row_data) > 7 and row_data[7] == "TRUE")
+                        
+                        try: st.session_state.user_profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+                        except: st.session_state.user_profile = {}
+                        
+                        try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
+                        except: st.session_state.messages = []
+                        
+                        if not st.session_state.messages:
+                            st.session_state.calibration_step = 1
+                        
+                        # Расчет дней в системе
+                        try:
+                            reg_date = datetime.strptime(row_data[3], "%Y-%m-%d").date()
+                            st.session_state.days_in_system = (date.today() - reg_date).days
+                        except:
+                            st.session_state.days_in_system = 0
+                            
+                        st.rerun()
+                    else: st.error("Ошибка доступа. Неверное имя или PIN.")
+                else: st.warning("Введи данные.")
 
     with tab2:
-        ru = st.text_input("НОВОЕ ИМЯ", key="r_u")
-        rp = st.text_input("НОВЫЙ PIN", type="password", key="r_p", max_chars=4)
-        if st.button("ЗАРЕГИСТРИРОВАТЬСЯ", use_container_width=True):
-            if db.register_user(ru, rp) == "OK":
-                st.success("Готово! Входим...")
-                time.sleep(1)
-                udata, row = db.load_user(ru)
-                st.session_state.logged_in = True
-                st.session_state.username = ru
-                st.session_state.row_num = row
-                st.session_state.streak = 0
-                st.session_state.last_active = str(date.today())
-                st.session_state.reg_date = str(date.today())
-                st.session_state.vip = False
-                st.session_state.user_profile = {}
-                
-                # Приветствие в чате
-                welcome = "Профиль создан. Добро пожаловать.\nТвой первый шаг — нажми кнопку **'✨ СЕГОДНЯ ЧИСТ'** вверху, чтобы активировать защиту."
-                st.session_state.messages = [{"role": "assistant", "content": welcome}]
-                db.save_history(row, st.session_state.messages)
-                
-                st.rerun()
-            else: st.error("Имя занято.")
+        with st.form("reg_form"):
+            new_user = st.text_input("Придумай Имя Аватара").strip().lower()
+            new_pin = st.text_input("Придумай PIN-код (4 цифры)", type="password").strip()
+            vip_in = st.text_input("Код доступа (если есть)").strip()
+            if st.form_submit_button("СОЗДАТЬ ПРОФИЛЬ"):
+                if len(new_pin) != 4 or not new_pin.isdigit():
+                    st.error("PIN должен состоять из 4 цифр.")
+                elif new_user:
+                    res = db.register_user(new_user, new_pin)
+                    if res == "OK":
+                        if vip_in == VIP_CODE:
+                            _, r_num = db.load_user(new_user)
+                            db.update_field(r_num, 8, "TRUE")
+                        st.success("Профиль создан! Теперь войди в систему на вкладке ВХОД.")
+                    elif res == "TAKEN": st.error("Это имя уже занято.")
+                    else: st.error("Ошибка БД.")
+                else: st.warning("Введи имя.")
 
 # ==========================================
-# 2. ВНУТРИ СИСТЕМЫ
+# КАЛИБРОВКА (АНКЕТА)
+# ==========================================
+elif st.session_state.calibration_step > 0:
+    st.markdown("### 🛠 КАЛИБРОВКА АВАТАРА")
+    step = st.session_state.calibration_step
+    
+    def next_step(key, val):
+        st.session_state.user_profile[key] = val
+        db.update_profile(st.session_state.row_num, key, val)
+        st.session_state.calibration_step += 1
+        st.rerun()
+
+    if step == 1:
+        st.write("Ты читал книгу «Кто такой Алкоголь»?")
+        if st.button("Да, читал"): next_step("read_book", "Да")
+        if st.button("Нет, не читал"): next_step("read_book", "Нет")
+    elif step == 2:
+        st.write("Как часто Гость берет контроль? (Как часто пьешь?)")
+        if st.button("Каждый день"): next_step("frequency", "Каждый день")
+        if st.button("Раз в неделю (Пятница/Выходные)"): next_step("frequency", "Выходные")
+        if st.button("Редко, но метко (Запои)"): next_step("frequency", "Запои")
+    elif step == 3:
+        st.write("Что обычно служит триггером?")
+        if st.button("Усталость после работы"): next_step("triggers", "Стресс/Усталость")
+        if st.button("Скука, пустота"): next_step("triggers", "Скука")
+        if st.button("Компании, праздники"): next_step("triggers", "Социум")
+    elif step == 4:
+        st.write("Какая попытка выйти из Матрицы по счету?")
+        if st.button("Первая осознанная"): next_step("history", "Первая")
+        if st.button("Пробовал, срывался (1-3 раза)"): next_step("history", "Были срывы")
+        if st.button("Борюсь давно"): next_step("history", "Долгая борьба")
+    elif step == 5:
+        st.write("Что чувствуешь прямо сейчас?")
+        if st.button("Страх, что не получится"): next_step("state", "Страх/Сомнения")
+        if st.button("Решимость, я готов"): next_step("state", "Решимость")
+        if st.button("Тягу, Гость уже шепчет"): next_step("state", "Тяга прямо сейчас")
+    else:
+        st.session_state.calibration_step = 0
+        st.session_state.messages.append({"role": "assistant", "content": f"Калибровка завершена. Приветствую, {st.session_state.username}. Я — твой ИИ-наставник. Матрица зафиксировала твои параметры. С чего начнем?"})
+        db.save_history(st.session_state.row_num, st.session_state.messages)
+        st.rerun()
+
+# ==========================================
+# ОСНОВНОЙ РАБОЧИЙ ЭКРАН (ЧАТ ИЛИ ДНЕВНИК)
 # ==========================================
 else:
-    # --- РАСЧЕТ ЛИМИТОВ (СРАЗУ ПРИ ЗАГРУЗКЕ) ---
-    limit_total = settings.LIMIT_NEW_USER if st.session_state.streak < 3 else settings.LIMIT_OLD_USER
-    msgs_used = sum(1 for m in st.session_state.messages if m["role"] == "user")
-    
-    # Если новый день - можно было бы сбрасывать, но мы считаем по истории
-    # Упростим: берем последние сообщения за сегодня. 
-    # (Для простоты пока считаем просто общее кол-во в текущей сессии/истории, как было)
-    # Чтобы счетчик был красивым:
-    energy_left = max(0, limit_total - msgs_used)
-    
-    # Проверка блокировки
-    is_locked = (not st.session_state.vip) and (msgs_used >= limit_total)
-
-    # --- ХЕДЕР С ЭНЕРГИЕЙ ---
-    st.markdown(f"""
-    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; font-family:Orbitron;'>
-        <div style='font-size:18px;'>MUKTI <span style='color:#00E676; font-size:14px;'>// ONLINE</span></div>
-        <div style='font-size:12px; color:#888;'>ЭНЕРГИЯ: <span style='color:{"#00E676" if energy_left > 0 else "#FF3D00"}'>{energy_left}/{limit_total}</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # --- ПЛАШКА БЛОКИРОВКИ (ЕСЛИ ЛИМИТ ИСЧЕРПАН) ---
-    if is_locked:
-        st.markdown(f"""
-        <div class="limit-alert">
-            <h3 style="color:#FF3D00; margin:0;">🔒 ЛИМИТ ИСЧЕРПАН</h3>
-            <p style="color:#ccc; font-size:14px; margin-top:10px;">Энергия на сегодня закончилась.</p>
-            <hr style="border-color:#550000;">
-            <p style="margin-top:10px;">Чтобы снять ограничения:</p>
-            <p>👉 <a href="https://t.me/Vybornov_Roman" target="_blank">НАПИСАТЬ РОМАНУ (MUKTI)</a></p>
-            <p style="font-size:12px; color:#888;">Или введи код доступа ниже</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # --- ЭКРАН 1: SOS РЕЖИМ (ПОЛНЫЙ) ---
-    if "sos_mode" not in st.session_state: st.session_state.sos_mode = False
-    if st.session_state.sos_mode:
-        if "sos_technique" not in st.session_state:
-            techs = [
-                {"name": "❄️ ЛЕДЯНОЙ СБРОС", "instr": "Включи ледяную воду. Подержи запястья под струей 30 секунд или умой лицо.", "why": "Это биологический рефлекс 'ныряльщика'. Организм переключается с режима 'Хочу дофамин' на режим 'Сохранение энергии'."},
-                {"name": "⏪ ПЕРЕМОТКА ПЛЕНКИ", "instr": "Не думай о первом глотке. Представь завтрашнее утро. Головную боль. Стыд. Проиграй это кино до самого конца.", "why": "Тяга показывает только трейлер. Мы заставляем мозг посмотреть весь фильм ужасов."},
-                {"name": "🗣 ИМЯ ВРАГА", "instr": "Скажи вслух: 'Это не я хочу выпить. Это Паразит умирает и просит еды. Я не буду его кормить'.", "why": "Разделяет 'Я' и 'Голос зависимости'."},
-                {"name": "💨 ДЫХАНИЕ 'КВАДРАТ'", "instr": "Вдох (4 сек) — Пауза (4 сек) — Выдох (4 сек) — Пауза (4 сек). Повтори 5 циклов.", "why": "Выравнивает CO2 и физически гасит сигнал тревоги в мозге."}
-            ]
-            st.session_state.sos_technique = random.choice(techs)
+    # --- БОКОВОЕ МЕНЮ (САЙДБАР) ---
+    with st.sidebar:
+        st.markdown(f"### 👤 {st.session_state.username}")
+        st.markdown("---")
         
-        t = st.session_state.sos_technique
-        st.markdown(f"""
-        <div style='border:1px solid #FF3D00; padding:25px; border-radius:20px; background:rgba(40,0,0,0.9); text-align:center; margin-bottom:20px;'>
-            <h2 style='color:#FF3D00; margin-bottom:20px;'>{t['name']}</h2>
-            <div style='text-align:left; margin-bottom:15px;'>
-                <p style='color:#fff;'><b>⚡️ ИНСТРУКЦИЯ:</b><br>{t['instr']}</p>
-            </div>
-            <div style='text-align:left; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px;'>
-                <p style='color:#888; font-size:13px; margin:0;'>💡 <b>Почему это работает:</b> {t['why']}</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("Я ВЕРНУЛ КОНТРОЛЬ", use_container_width=True):
-            st.session_state.sos_mode = False
-            del st.session_state.sos_technique
+        if st.button("💬 ТЕРМИНАЛ (Чат)"):
+            st.session_state.current_view = "chat"
             st.rerun()
-        st.stop()
-
-    # --- ЭКРАН 2: ДАШБОРД ---
-    st.markdown("<div class='glass-container'>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1.5, 1])
-    
-    with c1:
-        st.markdown(f"<div style='text-align:center; font-size:30px; font-weight:bold; font-family:Orbitron;'>{st.session_state.streak}</div>", unsafe_allow_html=True)
-        st.markdown("<div style='text-align:center; font-size:10px; color:#888;'>ДНЕЙ</div>", unsafe_allow_html=True)
-    
-    with c2:
-        today = date.today()
-        try: last = datetime.strptime(str(st.session_state.last_active), "%Y-%m-%d").date()
-        except: last = today
-        delta = (today - last).days
-        
-        if delta == 0 and st.session_state.streak > 0:
-            st.button("✅ ЗАЧТЕНО", disabled=True, use_container_width=True)
-        else:
-            if st.button("✨ СЕГОДНЯ ЧИСТ", use_container_width=True):
-                new_streak = 1 if delta > 1 and st.session_state.streak > 0 else st.session_state.streak + 1
-                db.update_field(st.session_state.row_num, 3, new_streak)
-                db.update_field(st.session_state.row_num, 4, str(today))
-                st.session_state.streak = new_streak
-                st.session_state.last_active = str(today)
-                
-                # --- ЛОГИКА КАЛИБРОВКИ (ЖИВОЙ ДИАЛОГ) ---
-                # 1. Сначала проверка книги (если еще не спрашивали)
-                if 'read_book' not in st.session_state.user_profile:
-                    st.session_state.calibration_step = 1
-                    msg = "День зачтен. Но прежде чем мы продолжим... Скажи, **ты уже читал книгу 'Кто такой Алкоголь'?**"
-                
-                # 2. Если книгу уже обсуждали, но профиль не полон - продолжаем вопросы
-                elif 'frequency' not in st.session_state.user_profile:
-                    st.session_state.calibration_step = 2
-                    msg = "Отлично. Теперь давай настроим защиту. Скажи честно, **как часто Паразит обычно перехватывает управление?** (Каждый день, только по пятницам или бывают запои?)"
-                
-                # 3. Обычный режим
-                else:
-                    msg = "Данные обновлены. Как твое состояние сегодня? Паразит не беспокоил?"
-                
-                st.session_state.messages.append({"role": "assistant", "content": msg})
-                db.save_history(st.session_state.row_num, st.session_state.messages)
-                st.rerun()
-
-    with c3:
-        if st.button("🚨 SOS", use_container_width=True):
-            st.session_state.sos_mode = True
+            
+        if st.button("📓 ДНЕВНИК СВОБОДЫ"):
+            st.session_state.current_view = "diary"
             st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+            
+        st.markdown("---")
+        if st.button("🚪 ВЫХОД"):
+            st.session_state.logged_in = False
+            st.rerun()
 
-    # --- ЧАТ ---
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-    # --- ВВОД (ЛОГИКА) ---
-    if is_locked:
-        # Ввод кода при блокировке
-        code_input = st.text_input("Введи Код Доступа:", key="vip_in")
-        if st.button("АКТИВИРОВАТЬ", use_container_width=True):
-            if code_input == VIP_CODE:
-                db.update_field(st.session_state.row_num, 8, "TRUE")
-                st.session_state.vip = True
-                st.success("VIP активирован! Энергия восстановлена.")
-                time.sleep(1)
-                st.rerun()
-            else: st.error("Неверный код")
+    # ОПРЕДЕЛЯЕМ, ЧТО ПОКАЗЫВАТЬ
+    if st.session_state.current_view == "diary":
+        render_diary()
+        
     else:
-        # Обычный чат
-        if prompt := st.chat_input("Напиши сюда..."):
+        # --- ИНТЕРФЕЙС ЧАТА ---
+        # Подсчет лимитов
+        msgs_today = 0
+        today_str = str(date.today())
+        
+        row_data, _ = db.load_user(st.session_state.username)
+        if row_data:
+            last_date = row_data[4] if len(row_data) > 4 else today_str
+            msgs_today = int(row_data[2]) if len(row_data) > 2 and row_data[2].isdigit() else 0
+            if last_date != today_str:
+                msgs_today = 0
+                db.update_field(st.session_state.row_num, 4, today_str)
+                db.update_field(st.session_state.row_num, 3, msgs_today)
+
+        is_newbie = st.session_state.days_in_system <= 3
+        current_limit = settings.LIMIT_NEW_USER if is_newbie else settings.LIMIT_OLD_USER
+        
+        if st.session_state.is_vip:
+            limit_text = "∞ (VIP)"
+            can_send = True
+        else:
+            limit_text = f"{msgs_today} / {current_limit}"
+            can_send = msgs_today < current_limit
+
+        col1, col2 = st.columns([3, 1])
+        with col1: st.markdown(f"**Статус:** {'🟢 Режим Адаптации' if is_newbie else '🔵 Основной Режим'}")
+        with col2: st.markdown(f"**Энергия ИИ:** {limit_text}")
+
+        # ИСТОРИЯ
+        for msg in st.session_state.messages:
+            if msg["role"] != "system":
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+
+        # ЛИМИТЫ
+        if not can_send:
+            st.markdown(f"""
+            <div class='limit-alert'>
+                <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
+                Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
+                Возвращайся завтра, система перезагрузится.
+            </div>
+            """, unsafe_allow_html=True)
+            
+        # ВВОД
+        elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"): st.markdown(prompt)
 
-            # КАЛИБРОВКА (ВОПРОСЫ)
-            step = st.session_state.calibration_step
-            if step > 0:
-                resp = ""
-                # Шаг 1: Книга
-                if step == 1:
-                    db.update_profile(st.session_state.row_num, "read_book", prompt)
-                    # Если ответ "нет" - предлагаем ссылку
-                    if "нет" in prompt.lower():
-                        resp = "Понял. Очень рекомендую прочитать, это усилит твою защиту на 80%. [Скачать можно тут](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/).\n\nА пока идем дальше. **Как часто Паразит обычно атакует?** (Каждый день, выходные, запои?)"
-                    else:
-                        resp = "Принято. Идем дальше. **Как часто Паразит обычно атакует?** (Каждый день, выходные, запои?)"
-                    st.session_state.calibration_step = 2
-                
-                # Шаг 2: Частота -> Триггеры
-                elif step == 2:
-                    db.update_profile(st.session_state.row_num, "frequency", prompt)
-                    resp = "Записал. **В какие именно моменты его голос звучит громче всего?** (Когда стресс на работе, когда скучно дома или в компании друзей?)"
-                    st.session_state.calibration_step = 3
-                
-                # Шаг 3: Триггеры -> Опыт
-                elif step == 3:
-                    db.update_profile(st.session_state.row_num, "triggers", prompt)
-                    resp = "Ясно. **Какой у тебя опыт сопротивления?** (Ты пробуешь бросить первый раз или уже были попытки и срывы?)"
-                    st.session_state.calibration_step = 4
-                
-                # Шаг 4: Опыт -> Состояние
-                elif step == 4:
-                    db.update_profile(st.session_state.row_num, "history", prompt)
-                    resp = "И последнее, но важное. **Что ты чувствуешь прямо сейчас?** (Тревогу, уверенность, вину или пустоту?)"
-                    st.session_state.calibration_step = 5
-                
-                # Шаг 5: Финал -> Цель
-                elif step == 5:
-                    db.update_profile(st.session_state.row_num, "state", prompt)
-                    st.session_state.user_profile = db.get_profile(st.session_state.row_num)
-                    resp = "Профиль Врага оцифрован. Я настроил алгоритмы защиты.\n\nТеперь закрепим намерение. **Ради какой Большой Цели ты решил освободиться?** Что алкоголь у тебя крадет?"
-                    st.session_state.calibration_step = 0
-                
+            if not st.session_state.is_vip:
+                msgs_today += 1
+                db.update_field(st.session_state.row_num, 3, msgs_today)
+
+            # ПАСХАЛКА
+            easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
+            if any(word in prompt.lower() for word in easter_eggs):
+                resp = random.choice([
+                    "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
+                    "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
+                ])
                 with st.chat_message("assistant"): st.markdown(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
@@ -307,7 +329,3 @@ else:
                             st.session_state.messages.append({"role": "assistant", "content": txt})
                             db.save_history(st.session_state.row_num, st.session_state.messages)
                         else: st.error("Сбой связи. Попробуй еще раз.")
-
-    if st.sidebar.button("ВЫХОД"):
-        st.session_state.logged_in = False
-        st.rerun()
