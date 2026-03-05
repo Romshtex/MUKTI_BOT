@@ -41,7 +41,7 @@ if "calibration_step" not in st.session_state: st.session_state.calibration_step
 # 1. ЛЕНДИНГ И ВХОД
 # ==========================================
 if not st.session_state.logged_in:
-    st.markdown("<br><h1>MUKTI</h1>", unsafe_allow_html=True)
+    st.markdown("<br><h1>МУКТИ</h1>", unsafe_allow_html=True)
     st.markdown("<div style='text-align:center; color:#00E676; margin-bottom:30px; letter-spacing:1px;'>Твой персональный ИИ-ассистент для выхода из зависимости</div>", unsafe_allow_html=True)
     
     st.markdown("""
@@ -120,7 +120,7 @@ else:
     # --- ХЕДЕР С ЭНЕРГИЕЙ ---
     st.markdown(f"""
     <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; font-family:Orbitron;'>
-        <div style='font-size:18px;'>MUKTI <span style='color:#00E676; font-size:14px;'>// ONLINE</span></div>
+        <div style='font-size:18px;'>МУКТИ <span style='color:#00E676; font-size:14px;'>// ONLINE</span></div>
         <div style='font-size:12px; color:#888;'>ЭНЕРГИЯ: <span style='color:{"#00E676" if energy_left > 0 else "#FF3D00"}'>{energy_left}/{limit_total}</span></div>
     </div>
     """, unsafe_allow_html=True)
@@ -133,7 +133,7 @@ else:
             <p style="color:#ccc; font-size:14px; margin-top:10px;">Энергия на сегодня закончилась.</p>
             <hr style="border-color:#550000;">
             <p style="margin-top:10px;">Чтобы снять ограничения:</p>
-            <p>👉 <a href="https://t.me/Vybornov_Roman" target="_blank">НАПИСАТЬ РОМАНУ (MUKTI)</a></p>
+            <p>👉 <a href="https://t.me/Vybornov_Roman" target="_blank">НАПИСАТЬ РОМАНУ </a></p>
             <p style="font-size:12px; color:#888;">Или введи код доступа ниже</p>
         </div>
         """, unsafe_allow_html=True)
