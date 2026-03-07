@@ -46,9 +46,10 @@ if "calibration_step" not in st.session_state: st.session_state.calibration_step
 if "reading_message" not in st.session_state: st.session_state.reading_message = False
 
 # --- ФУНКЦИИ ---
+# ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ВЫЯВЛЕНИЯ ОШИБКИ
 def send_email(to_email, subject, body):
     if not YANDEX_EMAIL or not YANDEX_PASSWORD:
-        return False
+        return "ОШИБКА: Файл secrets.toml не видит YANDEX_EMAIL или YANDEX_PASSWORD."
     try:
         msg = MIMEMultipart()
         msg['From'] = YANDEX_EMAIL
@@ -60,11 +61,11 @@ def send_email(to_email, subject, body):
         server.login(YANDEX_EMAIL, YANDEX_PASSWORD)
         server.send_message(msg)
         server.quit()
-        return True
-    except: return False
+        return "OK"
+    except Exception as e: 
+        return f"ОТКАЗ ЯНДЕКСА: {str(e)}"
 
 def get_mukti_date():
-    # Вычисляем "сегодня". Если время до 03:00 ночи, считаем, что это еще "вчера"
     now = datetime.now()
     if now.hour < 3:
         return str((now - timedelta(days=1)).date())
@@ -87,11 +88,10 @@ if not st.session_state.logged_in:
             if st.form_submit_button("ВОЙТИ"):
                 if email_in and pwd_in:
                     row_data, r_num = db.load_user(email_in)
-                    # Проверяем пароль (индекс 2 в новой БД)
                     if row_data and row_data[2] == pwd_in:
                         st.session_state.logged_in = True
                         st.session_state.user_email = email_in
-                        st.session_state.username = row_data[1] # Имя Аватара
+                        st.session_state.username = row_data[1] 
                         st.session_state.row_num = r_num
                         st.session_state.is_vip = (len(row_data) > 7 and row_data[7] == "TRUE")
                         
@@ -104,7 +104,6 @@ if not st.session_state.logged_in:
                         if not st.session_state.messages:
                             st.session_state.calibration_step = 1
                             
-                        # Проверка на ежедневное послание
                         current_date = get_mukti_date()
                         last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
                         msg_day = int(st.session_state.user_profile.get("msg_day", 0))
@@ -152,10 +151,14 @@ if not st.session_state.logged_in:
                         pwd = row_data[2]
                         subject = "МУКТИ: Доступ к системе"
                         body = f"Приветствую, {row_data[1]}.\n\nТвой пароль для доступа в Матрицу: {pwd}\n\nНе теряй его.\nАрхитектор."
-                        if send_email(rec_email, subject, body):
+                        
+                        # ВЫЗЫВАЕМ ОБНОВЛЕННУЮ ФУНКЦИЮ
+                        res = send_email(rec_email, subject, body)
+                        if res == "OK":
                             st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
                         else:
-                            st.error("Ошибка отправки. Почтовый шлюз не настроен.")
+                            # ВЫВОДИМ РЕАЛЬНУЮ ПРИЧИНУ
+                            st.error(f"Сбой отправки: {res}")
                     else:
                         st.error("Аватар с таким Email не найден.")
 
@@ -198,7 +201,7 @@ elif st.session_state.calibration_step > 0:
         if st.button("Тягу, Гость уже шепчет"): next_step("state", "Тяга прямо сейчас")
     else:
         st.session_state.calibration_step = 0
-        st.session_state.reading_message = True # Сразу после анкеты показываем Послание День 1
+        st.session_state.reading_message = True 
         st.session_state.messages.append({"role": "assistant", "content": f"Калибровка завершена. Приветствую, {st.session_state.username}. Я — твой ИИ-наставник. Матрица зафиксировала твои параметры."})
         db.save_history(st.session_state.row_num, st.session_state.messages)
         st.rerun()
@@ -219,7 +222,6 @@ elif st.session_state.reading_message:
         st.markdown("</div><br>", unsafe_allow_html=True)
         
         if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
-            # Сохраняем прогресс
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
             
@@ -229,7 +231,6 @@ elif st.session_state.reading_message:
             st.session_state.reading_message = False
             st.rerun()
     else:
-        # Если посланий больше нет (например, прошел 61 день)
         st.session_state.reading_message = False
         st.rerun()
 
@@ -237,7 +238,6 @@ elif st.session_state.reading_message:
 # ОСНОВНОЙ ТЕРМИНАЛ (ЧАТ)
 # ==========================================
 else:
-    # --- БОКОВОЕ МЕНЮ (САЙДБАР) ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.username}")
         msg_day = st.session_state.user_profile.get("msg_day", 0)
@@ -248,7 +248,6 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- ИНТЕРФЕЙС ЧАТА ---
     msgs_today = 0
     today_str = str(date.today())
     
@@ -258,8 +257,8 @@ else:
         msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
         if last_date != today_str:
             msgs_today = 0
-            db.update_field(st.session_state.row_num, 5, today_str) # Дата теперь в 5 колонке (индекс 4)
-            db.update_field(st.session_state.row_num, 4, msgs_today) # Сообщения в 4 колонке (индекс 3)
+            db.update_field(st.session_state.row_num, 5, today_str) 
+            db.update_field(st.session_state.row_num, 4, msgs_today) 
 
     is_newbie = msg_day <= 3
     current_limit = settings.LIMIT_NEW_USER if is_newbie else settings.LIMIT_OLD_USER
@@ -275,13 +274,11 @@ else:
     with col1: st.markdown(f"**Статус:** {'🟢 Режим Адаптации' if is_newbie else '🔵 Основной Режим'}")
     with col2: st.markdown(f"**Энергия ИИ:** {limit_text}")
 
-    # ИСТОРИЯ
     for msg in st.session_state.messages:
         if msg["role"] != "system":
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    # ЛИМИТЫ
     if not can_send:
         st.markdown(f"""
         <div class='limit-alert'>
@@ -291,16 +288,14 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-    # ВВОД
     elif prompt := st.chat_input("Напиши мне..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
 
         if not st.session_state.is_vip:
             msgs_today += 1
-            db.update_field(st.session_state.row_num, 4, msgs_today) # Обновление счетчика
+            db.update_field(st.session_state.row_num, 4, msgs_today)
 
-        # ПАСХАЛКА
         easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
         if any(word in prompt.lower() for word in easter_eggs):
             resp = random.choice([
@@ -311,7 +306,6 @@ else:
             st.session_state.messages.append({"role": "assistant", "content": resp})
             db.save_history(st.session_state.row_num, st.session_state.messages)
 
-        # AI ОТВЕТ
         else:
             with st.chat_message("assistant"):
                 with st.spinner("Оцифровка мыслей..."):
