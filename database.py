@@ -26,24 +26,34 @@ def get_db():
         return client.open("MUKTI_DB").sheet1
     except: return None
 
-def load_user(username):
+# ТЕПЕРЬ ИЩЕМ ПО EMAIL В 1-Й КОЛОНКЕ
+def load_user(email):
     sheet = get_db()
     if not sheet: return None, None
     try:
-        cell = sheet.find(username)
+        # Ищем строго в первой колонке (Email)
+        cell = sheet.find(email, in_column=1)
         if cell: return sheet.row_values(cell.row), cell.row
     except: pass
     return None, None
 
-def register_user(username, pin):
+# ТЕПЕРЬ РЕГИСТРИРУЕМ С EMAIL
+def register_user(email, username, password):
     sheet = get_db()
     if not sheet: return "ERROR"
     try:
-        if sheet.find(username): return "TAKEN"
+        if sheet.find(email, in_column=1): return "TAKEN"
     except: pass
     
     today = str(date.today())
-    row = [username, pin, 0, today, today, "{}", "[]", "FALSE"]
+    # Исходный профиль с нулевым прогрессом посланий
+    initial_profile = json.dumps({
+        "msg_day": 0,
+        "last_msg_date": ""
+    }, ensure_ascii=False)
+    
+    # Структура: [Email, Имя, Пароль, Сообщения, Дата, Профиль, История, VIP]
+    row = [email, username, password, 0, today, initial_profile, "[]", "FALSE"]
     sheet.append_row(row)
     return "OK"
 
@@ -53,7 +63,7 @@ def update_field(row_num, col_num, value):
 
 def save_history(row_num, messages, depth=30):
     try:
-        history_str = json.dumps(messages[-depth:]) 
+        history_str = json.dumps(messages[-depth:], ensure_ascii=False) 
         update_field(row_num, 7, history_str)
     except: pass
 
@@ -64,15 +74,5 @@ def update_profile(row_num, key, value):
             current_json = sheet.cell(row_num, 6).value
             data = json.loads(current_json) if current_json else {}
             data[key] = value
-            sheet.update_cell(row_num, 6, json.dumps(data))
-            return data
-        except: return {}
-
-def get_profile(row_num):
-    sheet = get_db()
-    if sheet:
-        try:
-            current_json = sheet.cell(row_num, 6).value
-            return json.loads(current_json) if current_json else {}
-        except: return {}
-    return {}
+            sheet.update_cell(row_num, 6, json.dumps(data, ensure_ascii=False))
+        except: pass
