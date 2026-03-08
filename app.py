@@ -7,7 +7,7 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import extra_streamlit_components as stx  # НОВАЯ БИБЛИОТЕКА ДЛЯ COOKIES
+import extra_streamlit_components as stx  
 
 # ИМПОРТ МОДУЛЕЙ
 import settings
@@ -160,10 +160,9 @@ if not st.session_state.logged_in:
                 if email_in and pwd_in:
                     row_data, r_num = db.load_user(email_in)
                     if row_data and row_data[2] == pwd_in:
-                        # Ставим печать в браузер на 30 дней
                         cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
                         load_user_to_session(email_in)
-                        time.sleep(0.5) # Ждем прогрузки куки
+                        time.sleep(0.5) 
                         st.rerun()
                     else: st.error("Ошибка доступа. Неверный Email или Пароль.")
                 else: st.warning("Введи данные.")
@@ -253,7 +252,6 @@ else:
             
         st.markdown("---")
         if st.button("🚪 ВЫХОД"):
-            # Стираем печать при выходе!
             cookie_manager.delete("mukti_user")
             st.session_state.logged_in = False
             time.sleep(0.5)
@@ -273,13 +271,41 @@ else:
             user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
             if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
                 if user_msg.strip():
-                    subj = f"МУКТИ: Запрос от {st.session_state.username}"
-                    body = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
-                    res = send_email(YANDEX_EMAIL, subj, body)
-                    if res == "OK":
-                        st.success("Сообщение успешно доставлено! Ответ придет на твою электронную почту.")
+                    # 1. Отправляем письмо Архитектору
+                    subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
+                    body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
+                    res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
+                    
+                    # 2. Если это запрос на VIP, сразу отправляем автоответ Пользователю!
+                    msg_upper = user_msg.upper()
+                    if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
+                        subj_user = "МУКТИ: Активация Полного доступа (VIP)"
+                        body_user = f"""Приветствую, {st.session_state.username}! На связи Архитектор проекта.
+
+В данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.
+
+Что ты получишь, перейдя в режим VIP (Полный доступ):
+- Расширенный резерв энергии (до 20 диалогов в день).
+- Персональная аналитика триггеров.
+- Непрерывность (доступ на 61 день).
+- Приоритетная поддержка.
+
+Стоимость и оплата:
+Полная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена — всего 610 рублей.
+
+Как активировать доступ прямо сейчас:
+1. Сделай перевод 610 рублей по номеру: +7 (905) 294-52-45 (Сбербанк).
+2. Пришли скриншот чека ответным письмом на это сообщение.
+3. В течение нескольких часов я вручную переведу твой аккаунт в статус VIP.
+
+Готов выйти из Матрицы? Жду подтверждения.
+"""
+                        send_email(st.session_state.user_email, subj_user, body_user)
+
+                    if res_admin == "OK":
+                        st.success("Сообщение успешно доставлено! Если это был запрос на VIP, инструкция уже выслана на твою почту.")
                     else:
-                        st.error(f"Ошибка отправки: {res}")
+                        st.error(f"Ошибка отправки: {res_admin}")
                 else:
                     st.warning("Напиши текст сообщения.")
         
