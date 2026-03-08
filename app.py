@@ -7,6 +7,7 @@ import random
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import extra_streamlit_components as stx  # НОВАЯ БИБЛИОТЕКА ДЛЯ COOKIES
 
 # ИМПОРТ МОДУЛЕЙ
 import settings
@@ -49,6 +50,12 @@ st.markdown("""
     h1, h2, h3 { color: #00E676 !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# --- ИНИЦИАЛИЗАЦИЯ COOKIES ---
+@st.cache_resource(experimental_allow_widgets=True)
+def get_manager():
+    return stx.CookieManager()
+cookie_manager = get_manager()
 
 # --- МОДЕЛЬ ---
 @st.cache_resource
@@ -95,6 +102,47 @@ def get_mukti_date():
         return str((now - timedelta(days=1)).date())
     return str(now.date())
 
+def load_user_to_session(email):
+    row_data, r_num = db.load_user(email)
+    if row_data:
+        st.session_state.logged_in = True
+        st.session_state.user_email = email
+        st.session_state.username = row_data[1] 
+        st.session_state.row_num = r_num
+        st.session_state.is_vip = (len(row_data) > 7 and row_data[7] == "TRUE")
+        
+        try: st.session_state.user_profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+        except: st.session_state.user_profile = {}
+        
+        try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
+        except: st.session_state.messages = []
+        
+        if not st.session_state.messages:
+            st.session_state.calibration_step = 1
+            welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            st.session_state.messages = [{"role": "assistant", "content": welcome}]
+            db.save_history(st.session_state.row_num, st.session_state.messages)
+            
+        current_date = get_mukti_date()
+        last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
+        msg_day = int(st.session_state.user_profile.get("msg_day", 0))
+        
+        if last_msg_date != current_date and msg_day < 61 and st.session_state.calibration_step == 0:
+            st.session_state.reading_message = True
+            
+        st.session_state.current_view = "chat"
+        return True
+    return False
+
+# ==========================================
+# АВТОЛОГИН ЧЕРЕЗ COOKIES
+# ==========================================
+if not st.session_state.logged_in:
+    saved_cookie = cookie_manager.get(cookie="mukti_user")
+    if saved_cookie:
+        if load_user_to_session(saved_cookie):
+            st.rerun()
+
 # ==========================================
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
@@ -112,32 +160,10 @@ if not st.session_state.logged_in:
                 if email_in and pwd_in:
                     row_data, r_num = db.load_user(email_in)
                     if row_data and row_data[2] == pwd_in:
-                        st.session_state.logged_in = True
-                        st.session_state.user_email = email_in
-                        st.session_state.username = row_data[1] 
-                        st.session_state.row_num = r_num
-                        st.session_state.is_vip = (len(row_data) > 7 and row_data[7] == "TRUE")
-                        
-                        try: st.session_state.user_profile = json.loads(row_data[5]) if len(row_data)>5 else {}
-                        except: st.session_state.user_profile = {}
-                        
-                        try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
-                        except: st.session_state.messages = []
-                        
-                        if not st.session_state.messages:
-                            st.session_state.calibration_step = 1
-                            welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
-                            st.session_state.messages = [{"role": "assistant", "content": welcome}]
-                            db.save_history(st.session_state.row_num, st.session_state.messages)
-                            
-                        current_date = get_mukti_date()
-                        last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
-                        msg_day = int(st.session_state.user_profile.get("msg_day", 0))
-                        
-                        if last_msg_date != current_date and msg_day < 61 and st.session_state.calibration_step == 0:
-                            st.session_state.reading_message = True
-                            
-                        st.session_state.current_view = "chat"
+                        # Ставим печать в браузер на 30 дней
+                        cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
+                        load_user_to_session(email_in)
+                        time.sleep(0.5) # Ждем прогрузки куки
                         st.rerun()
                     else: st.error("Ошибка доступа. Неверный Email или Пароль.")
                 else: st.warning("Введи данные.")
@@ -156,20 +182,9 @@ if not st.session_state.logged_in:
                 elif new_user:
                     res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
-                        row_data, r_num = db.load_user(new_email)
-                        st.session_state.logged_in = True
-                        st.session_state.user_email = new_email
-                        st.session_state.username = new_user 
-                        st.session_state.row_num = r_num
-                        st.session_state.is_vip = False
-                        st.session_state.user_profile = {}
-                        st.session_state.calibration_step = 1
-                        
-                        welcome = f"Приветствую, {new_user}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
-                        st.session_state.messages = [{"role": "assistant", "content": welcome}]
-                        db.save_history(r_num, st.session_state.messages)
-                        
-                        st.session_state.current_view = "chat"
+                        cookie_manager.set("mukti_user", new_email, expires_at=datetime.now() + timedelta(days=30))
+                        load_user_to_session(new_email)
+                        time.sleep(0.5)
                         st.rerun()
                     elif res == "TAKEN": st.error("Этот Email уже зарегистрирован.")
                     else: st.error("Ошибка БД.")
@@ -238,7 +253,10 @@ else:
             
         st.markdown("---")
         if st.button("🚪 ВЫХОД"):
+            # Стираем печать при выходе!
+            cookie_manager.delete("mukti_user")
             st.session_state.logged_in = False
+            time.sleep(0.5)
             st.rerun()
 
     # ВЬЮ: ОТДЕЛ ЗАБОТЫ
@@ -265,7 +283,6 @@ else:
                 else:
                     st.warning("Напиши текст сообщения.")
         
-        # Кнопка возврата в чат (вне формы, чтобы всегда была видна)
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔙 ВЕРНУТЬСЯ В ТЕРМИНАЛ", use_container_width=True):
             st.session_state.current_view = "chat"
@@ -301,15 +318,12 @@ else:
         with col2: 
             st.markdown(f"**Энергия:** {limit_text}")
 
-        # ИСТОРИЯ ЧАТА С ЦВЕТНЫМИ АВАТАРАМИ
         for msg in st.session_state.messages:
             if msg["role"] != "system":
-                # Синий круг для юзера, зеленый для МУКТИ
                 avatar_icon = "🟢" if msg["role"] == "assistant" else "🔵"
                 with st.chat_message(msg["role"], avatar=avatar_icon):
                     st.markdown(msg["content"])
 
-        # СООБЩЕНИЯ ОБ ИСЧЕРПАНИИ ЛИМИТОВ
         if not can_send:
             if st.session_state.is_vip:
                 st.markdown("""
@@ -324,7 +338,7 @@ else:
                 <div class='limit-alert' style='border-color: #FF3D00;'>
                     <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
                     Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
-                    <i>Тебе нужен Полный доступ (VIP), чтобы продолжить работу.</i>
+                    <i>Завтра базовый резерв энергии восстановится, и мы сможем продолжить. Или запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -332,7 +346,6 @@ else:
                     st.session_state.current_view = "care"
                     st.rerun()
             
-        # ВВОД ПОЛЬЗОВАТЕЛЯ
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user", avatar="🔵"): st.markdown(prompt)
@@ -340,7 +353,6 @@ else:
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
 
-            # --- ЛОГИКА КАЛИБРОВКИ ---
             if st.session_state.calibration_step > 0:
                 step = st.session_state.calibration_step
                 resp = ""
@@ -388,7 +400,6 @@ else:
                     time.sleep(1.5) 
                     st.rerun()
 
-            # --- ОБЫЧНЫЙ AI-ОТВЕТ ---
             else:
                 easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                 if any(word in prompt.lower() for word in easter_eggs):
