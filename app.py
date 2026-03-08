@@ -25,25 +25,27 @@ try:
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
-# --- ПРИНУДИТЕЛЬНЫЙ ТЕМНЫЙ РЕЖИМ (ФИКС СЕРОГО ТЕКСТА НА ТЕЛЕФОНАХ) ---
+# --- CSS: ВОЗВРАТ МАТРИЦЫ С ТОНИРОВКОЙ ---
+# Мы оставляем фон из settings.py, но накладываем полупрозрачный слой для читаемости текста
 st.markdown("""
 <style>
-    .stApp, .main, [data-testid="stAppViewContainer"] {
-        background-color: #0E1117 !important;
-        color: #FAFAFA !important;
+    .stApp > header { background-color: transparent !important; }
+    .main {
+        background-color: rgba(14, 17, 23, 0.85) !important; /* Тонировка поверх фона */
+        border-radius: 15px;
     }
     p, div, span, h1, h2, h3, h4, h5, h6, label, li {
         color: #FAFAFA !important;
     }
     .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-        background-color: #1E1E1E !important;
+        background-color: rgba(30, 30, 30, 0.9) !important;
         color: #00E676 !important;
         border: 1px solid #333 !important;
     }
     .stChatMessage {
         background-color: rgba(30, 30, 30, 0.8) !important;
         color: #FAFAFA !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        border: 1px solid rgba(0, 230, 118, 0.2) !important;
     }
     h1, h2, h3 { color: #00E676 !important; }
 </style>
@@ -146,7 +148,6 @@ if not st.session_state.logged_in:
             new_email = st.text_input("Email (Твой ID в системе)").strip().lower()
             new_user = st.text_input("Придумай Имя Аватара").strip()
             new_pwd = st.text_input("Придумай Пароль", type="password").strip()
-            # Поле VIP кода убрано для безопасности
             
             if st.form_submit_button("СОЗДАТЬ ПРОФИЛЬ"):
                 if not new_email or "@" not in new_email:
@@ -156,7 +157,22 @@ if not st.session_state.logged_in:
                 elif new_user:
                     res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
-                        st.success("Профиль создан! Теперь войди в систему на вкладке ВХОД.")
+                        # --- АВТОВХОД ПОСЛЕ РЕГИСТРАЦИИ ---
+                        row_data, r_num = db.load_user(new_email)
+                        st.session_state.logged_in = True
+                        st.session_state.user_email = new_email
+                        st.session_state.username = new_user 
+                        st.session_state.row_num = r_num
+                        st.session_state.is_vip = False
+                        st.session_state.user_profile = {}
+                        st.session_state.calibration_step = 1
+                        
+                        welcome = f"Приветствую, {new_user}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+                        st.session_state.messages = [{"role": "assistant", "content": welcome}]
+                        db.save_history(r_num, st.session_state.messages)
+                        
+                        st.session_state.current_view = "chat"
+                        st.rerun()
                     elif res == "TAKEN": st.error("Этот Email уже зарегистрирован.")
                     else: st.error("Ошибка БД.")
                 else: st.warning("Заполни все поля.")
@@ -232,14 +248,18 @@ else:
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
+        # Шаблон текста
+        default_text = ""
+        msgs_today = int(db.load_user(st.session_state.user_email)[0][3]) if db.load_user(st.session_state.user_email)[0] else 0
+        if not st.session_state.is_vip and msgs_today >= 10:
+            default_text = "Привет, Архитектор!\n\nЯ прошел первый день калибровки и готов к серьезной работе с МУКТИ. Прошу открыть мне Полный доступ (VIP)."
+            
         with st.form("care_form"):
-            user_msg = st.text_area("Твое сообщение:", height=150)
+            user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
             if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
                 if user_msg.strip():
                     subj = f"МУКТИ: Запрос от {st.session_state.username}"
                     body = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
-                    
-                    # Отправляем письмо с Яндекса на Яндекс (тебе самому)
                     res = send_email(YANDEX_EMAIL, subj, body)
                     if res == "OK":
                         st.success("Сообщение успешно доставлено! Ответ придет на твою электронную почту.")
@@ -262,7 +282,6 @@ else:
                 db.update_field(st.session_state.row_num, 5, today_str) 
                 db.update_field(st.session_state.row_num, 4, msgs_today) 
 
-        # ЛОГИКА ЛИМИТОВ
         is_day_one = (msg_day <= 1)
         if st.session_state.is_vip:
             current_limit = 20
@@ -300,9 +319,14 @@ else:
                 <div class='limit-alert' style='border-color: #FF3D00;'>
                     <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
                     Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
-                    <i>Чтобы получить полный доступ (VIP), напиши в <b>Отдел заботы</b> в левом меню.</i>
+                    <i>Тебе нужен Полный доступ (VIP), чтобы продолжить работу.</i>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # КНОПКА ПРЯМО В ЧАТЕ ДЛЯ ПЕРЕХОДА К АРХИТЕКТОРУ
+                if st.button("💌 НАПИСАТЬ В ОТДЕЛ ЗАБОТЫ", use_container_width=True):
+                    st.session_state.current_view = "care"
+                    st.rerun()
             
         # ВВОД ПОЛЬЗОВАТЕЛЯ
         elif prompt := st.chat_input("Напиши мне..."):
