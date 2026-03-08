@@ -25,13 +25,12 @@ try:
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
-# --- CSS: ВОЗВРАТ МАТРИЦЫ С ТОНИРОВКОЙ ---
-# Мы оставляем фон из settings.py, но накладываем полупрозрачный слой для читаемости текста
+# --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
 st.markdown("""
 <style>
     .stApp > header { background-color: transparent !important; }
     .main {
-        background-color: rgba(14, 17, 23, 0.85) !important; /* Тонировка поверх фона */
+        background-color: rgba(14, 17, 23, 0.85) !important; 
         border-radius: 15px;
     }
     p, div, span, h1, h2, h3, h4, h5, h6, label, li {
@@ -157,7 +156,6 @@ if not st.session_state.logged_in:
                 elif new_user:
                     res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
-                        # --- АВТОВХОД ПОСЛЕ РЕГИСТРАЦИИ ---
                         row_data, r_num = db.load_user(new_email)
                         st.session_state.logged_in = True
                         st.session_state.user_email = new_email
@@ -248,7 +246,6 @@ else:
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
-        # Шаблон текста
         default_text = ""
         msgs_today = int(db.load_user(st.session_state.user_email)[0][3]) if db.load_user(st.session_state.user_email)[0] else 0
         if not st.session_state.is_vip and msgs_today >= 10:
@@ -267,6 +264,12 @@ else:
                         st.error(f"Ошибка отправки: {res}")
                 else:
                     st.warning("Напиши текст сообщения.")
+        
+        # Кнопка возврата в чат (вне формы, чтобы всегда была видна)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔙 ВЕРНУТЬСЯ В ТЕРМИНАЛ", use_container_width=True):
+            st.session_state.current_view = "chat"
+            st.rerun()
 
     # ВЬЮ: ЧАТ
     else:
@@ -298,10 +301,12 @@ else:
         with col2: 
             st.markdown(f"**Энергия:** {limit_text}")
 
-        # ИСТОРИЯ ЧАТА
+        # ИСТОРИЯ ЧАТА С ЦВЕТНЫМИ АВАТАРАМИ
         for msg in st.session_state.messages:
             if msg["role"] != "system":
-                with st.chat_message(msg["role"]):
+                # Синий круг для юзера, зеленый для МУКТИ
+                avatar_icon = "🟢" if msg["role"] == "assistant" else "🔵"
+                with st.chat_message(msg["role"], avatar=avatar_icon):
                     st.markdown(msg["content"])
 
         # СООБЩЕНИЯ ОБ ИСЧЕРПАНИИ ЛИМИТОВ
@@ -323,7 +328,6 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # КНОПКА ПРЯМО В ЧАТЕ ДЛЯ ПЕРЕХОДА К АРХИТЕКТОРУ
                 if st.button("💌 НАПИСАТЬ В ОТДЕЛ ЗАБОТЫ", use_container_width=True):
                     st.session_state.current_view = "care"
                     st.rerun()
@@ -331,7 +335,7 @@ else:
         # ВВОД ПОЛЬЗОВАТЕЛЯ
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"): st.markdown(prompt)
+            with st.chat_message("user", avatar="🔵"): st.markdown(prompt)
 
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
@@ -375,7 +379,7 @@ else:
                     resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
                     st.session_state.calibration_step = 0
                     
-                with st.chat_message("assistant"): st.markdown(resp)
+                with st.chat_message("assistant", avatar="🟢"): st.markdown(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
                 
@@ -392,12 +396,12 @@ else:
                         "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
                         "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
                     ])
-                    with st.chat_message("assistant"): st.markdown(resp)
+                    with st.chat_message("assistant", avatar="🟢"): st.markdown(resp)
                     st.session_state.messages.append({"role": "assistant", "content": resp})
                     db.save_history(st.session_state.row_num, st.session_state.messages)
 
                 else:
-                    with st.chat_message("assistant"):
+                    with st.chat_message("assistant", avatar="🟢"):
                         with st.spinner("Оцифровка мыслей..."):
                             sys_prompt = settings.get_system_prompt(
                                 st.session_state.username, 
