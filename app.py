@@ -14,7 +14,6 @@ import database as db
 import messages as msg_module
 
 # --- НАСТРОЙКИ ---
-VIP_CODE = st.secrets.get("VIP_CODE", settings.VIP_CODE_DEFAULT)
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "")
 YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
@@ -25,6 +24,30 @@ try:
     from book import BOOK_SUMMARY
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
+
+# --- ПРИНУДИТЕЛЬНЫЙ ТЕМНЫЙ РЕЖИМ (ФИКС СЕРОГО ТЕКСТА НА ТЕЛЕФОНАХ) ---
+st.markdown("""
+<style>
+    .stApp, .main, [data-testid="stAppViewContainer"] {
+        background-color: #0E1117 !important;
+        color: #FAFAFA !important;
+    }
+    p, div, span, h1, h2, h3, h4, h5, h6, label, li {
+        color: #FAFAFA !important;
+    }
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background-color: #1E1E1E !important;
+        color: #00E676 !important;
+        border: 1px solid #333 !important;
+    }
+    .stChatMessage {
+        background-color: rgba(30, 30, 30, 0.8) !important;
+        color: #FAFAFA !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+    h1, h2, h3 { color: #00E676 !important; }
+</style>
+""", unsafe_allow_html=True)
 
 # --- МОДЕЛЬ ---
 @st.cache_resource
@@ -44,11 +67,12 @@ settings.load_css()
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0
 if "reading_message" not in st.session_state: st.session_state.reading_message = False
+if "current_view" not in st.session_state: st.session_state.current_view = "chat"
 
 # --- ФУНКЦИИ ---
 def send_email(to_email, subject, body):
     if not YANDEX_EMAIL or not YANDEX_PASSWORD:
-        return "ОШИБКА: Файл secrets.toml не видит YANDEX_EMAIL или YANDEX_PASSWORD."
+        return "ОШИБКА: Файл secrets.toml не видит ключи Яндекс."
     try:
         msg = MIMEMultipart()
         msg['From'] = YANDEX_EMAIL
@@ -71,7 +95,7 @@ def get_mukti_date():
     return str(now.date())
 
 # ==========================================
-# АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ (EMAIL)
+# АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #00E676;'>МУКТИ</h1>", unsafe_allow_html=True)
@@ -79,7 +103,6 @@ if not st.session_state.logged_in:
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
-    # ВХОД
     with tab1:
         with st.form("login_form"):
             email_in = st.text_input("Email").strip().lower()
@@ -100,7 +123,6 @@ if not st.session_state.logged_in:
                         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
                         except: st.session_state.messages = []
                         
-                        # ЕСЛИ ИСТОРИЯ ПУСТАЯ - ЗАПУСКАЕМ ЖИВУЮ КАЛИБРОВКУ
                         if not st.session_state.messages:
                             st.session_state.calibration_step = 1
                             welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
@@ -111,21 +133,20 @@ if not st.session_state.logged_in:
                         last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
                         msg_day = int(st.session_state.user_profile.get("msg_day", 0))
                         
-                        # Послание выводится, только если калибровка пройдена (step == 0)
                         if last_msg_date != current_date and msg_day < 61 and st.session_state.calibration_step == 0:
                             st.session_state.reading_message = True
                             
+                        st.session_state.current_view = "chat"
                         st.rerun()
                     else: st.error("Ошибка доступа. Неверный Email или Пароль.")
                 else: st.warning("Введи данные.")
 
-    # РЕГИСТРАЦИЯ
     with tab2:
         with st.form("reg_form"):
             new_email = st.text_input("Email (Твой ID в системе)").strip().lower()
             new_user = st.text_input("Придумай Имя Аватара").strip()
             new_pwd = st.text_input("Придумай Пароль", type="password").strip()
-            vip_in = st.text_input("Код доступа (если есть)").strip()
+            # Поле VIP кода убрано для безопасности
             
             if st.form_submit_button("СОЗДАТЬ ПРОФИЛЬ"):
                 if not new_email or "@" not in new_email:
@@ -135,15 +156,11 @@ if not st.session_state.logged_in:
                 elif new_user:
                     res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
-                        if vip_in == VIP_CODE:
-                            _, r_num = db.load_user(new_email)
-                            db.update_field(r_num, 8, "TRUE")
                         st.success("Профиль создан! Теперь войди в систему на вкладке ВХОД.")
                     elif res == "TAKEN": st.error("Этот Email уже зарегистрирован.")
                     else: st.error("Ошибка БД.")
                 else: st.warning("Заполни все поля.")
 
-    # ВОССТАНОВЛЕНИЕ ПАРОЛЯ
     with tab3:
         st.markdown("Забыл пароль? Мы пришлем его на твою почту.")
         with st.form("recovery_form"):
@@ -154,37 +171,31 @@ if not st.session_state.logged_in:
                     if row_data:
                         pwd = row_data[2]
                         subject = "МУКТИ: Доступ к системе"
-                        body = f"Приветствую, {row_data[1]}.\n\nТвой пароль для доступа в Матрицу: {pwd}\n\nНе теряй его.\nАрхитектор."
+                        body = f"Приветствую, {row_data[1]}.\n\nТвой пароль для доступа в систему: {pwd}\n\nНе теряй его.\nАрхитектор."
                         res = send_email(rec_email, subject, body)
-                        if res == "OK":
-                            st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
-                        else:
-                            st.error(f"Сбой отправки: {res}")
-                    else:
-                        st.error("Аватар с таким Email не найден.")
+                        if res == "OK": st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
+                        else: st.error(f"Сбой отправки: {res}")
+                    else: st.error("Аватар с таким Email не найден.")
 
 # ==========================================
-# ЕЖЕДНЕВНОЕ ПОСЛАНИЕ (БЛОКИРАТОР ЭКРАНА)
+# ЕЖЕДНЕВНОЕ ПОСЛАНИЕ
 # ==========================================
 elif st.session_state.reading_message:
     msg_day = int(st.session_state.user_profile.get("msg_day", 0))
     next_day = msg_day + 1
-    
     message_text = msg_module.get_message_for_day(next_day)
     
     if message_text:
         st.markdown(f"<div style='border: 2px solid #00E676; padding: 20px; border-radius: 10px; background: rgba(0, 230, 118, 0.05);'>", unsafe_allow_html=True)
-        st.markdown(f"<h3 style='color: #00E676;'>📥 ВХОДЯЩАЯ ПЕРЕДАЧА: ДЕНЬ {next_day}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: #00E676;'>ПОСЛАНИЕ НА ДЕНЬ</h3>", unsafe_allow_html=True)
         st.markdown(message_text)
         st.markdown("</div><br>", unsafe_allow_html=True)
         
         if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
-            
             db.update_profile(st.session_state.row_num, "msg_day", next_day)
             db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
-            
             st.session_state.reading_message = False
             st.rerun()
     else:
@@ -192,150 +203,195 @@ elif st.session_state.reading_message:
         st.rerun()
 
 # ==========================================
-# ОСНОВНОЙ ТЕРМИНАЛ (ЧАТ И ЖИВАЯ КАЛИБРОВКА)
+# ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ ИЛИ ОТДЕЛ ЗАБОТЫ)
 # ==========================================
 else:
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.username}")
         msg_day = st.session_state.user_profile.get("msg_day", 0)
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
+        if st.session_state.is_vip:
+            st.markdown("🌟 **Статус: Полный доступ**")
         st.markdown("---")
         
+        if st.button("💬 ТЕРМИНАЛ (Чат)"):
+            st.session_state.current_view = "chat"
+            st.rerun()
+            
+        if st.button("💌 ОТДЕЛ ЗАБОТЫ"):
+            st.session_state.current_view = "care"
+            st.rerun()
+            
+        st.markdown("---")
         if st.button("🚪 ВЫХОД"):
             st.session_state.logged_in = False
             st.rerun()
 
-    msgs_today = 0
-    today_str = str(date.today())
-    
-    row_data, _ = db.load_user(st.session_state.user_email)
-    if row_data:
-        last_date = row_data[4] if len(row_data) > 4 else today_str
-        msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
-        if last_date != today_str:
-            msgs_today = 0
-            db.update_field(st.session_state.row_num, 5, today_str) 
-            db.update_field(st.session_state.row_num, 4, msgs_today) 
+    # ВЬЮ: ОТДЕЛ ЗАБОТЫ
+    if st.session_state.current_view == "care":
+        st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
+        st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
+        
+        with st.form("care_form"):
+            user_msg = st.text_area("Твое сообщение:", height=150)
+            if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
+                if user_msg.strip():
+                    subj = f"МУКТИ: Запрос от {st.session_state.username}"
+                    body = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
+                    
+                    # Отправляем письмо с Яндекса на Яндекс (тебе самому)
+                    res = send_email(YANDEX_EMAIL, subj, body)
+                    if res == "OK":
+                        st.success("Сообщение успешно доставлено! Ответ придет на твою электронную почту.")
+                    else:
+                        st.error(f"Ошибка отправки: {res}")
+                else:
+                    st.warning("Напиши текст сообщения.")
 
-    is_newbie = msg_day <= 3
-    current_limit = settings.LIMIT_NEW_USER if is_newbie else settings.LIMIT_OLD_USER
-    
-    if st.session_state.is_vip:
-        limit_text = "∞ (VIP)"
-        can_send = True
+    # ВЬЮ: ЧАТ
     else:
+        msgs_today = 0
+        today_str = str(date.today())
+        
+        row_data, _ = db.load_user(st.session_state.user_email)
+        if row_data:
+            last_date = row_data[4] if len(row_data) > 4 else today_str
+            msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
+            if last_date != today_str:
+                msgs_today = 0
+                db.update_field(st.session_state.row_num, 5, today_str) 
+                db.update_field(st.session_state.row_num, 4, msgs_today) 
+
+        # ЛОГИКА ЛИМИТОВ
+        is_day_one = (msg_day <= 1)
+        if st.session_state.is_vip:
+            current_limit = 20
+        else:
+            current_limit = 10 if is_day_one else 3
+
         limit_text = f"{msgs_today} / {current_limit}"
         can_send = msgs_today < current_limit
 
-    col1, col2 = st.columns([3, 1])
-    with col1: st.markdown(f"**Статус:** {'🟢 Режим Адаптации' if is_newbie else '🔵 Основной Режим'}")
-    with col2: st.markdown(f"**Энергия ИИ:** {limit_text}")
+        col1, col2 = st.columns([3, 1])
+        with col1: 
+            if st.session_state.is_vip: st.markdown("**Режим:** 🌟 Полный доступ")
+            else: st.markdown(f"**Режим:** {'🟢 Базовый (День 1)' if is_day_one else '🔵 Базовый'}")
+        with col2: 
+            st.markdown(f"**Энергия:** {limit_text}")
 
-    # ИСТОРИЯ ЧАТА
-    for msg in st.session_state.messages:
-        if msg["role"] != "system":
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+        # ИСТОРИЯ ЧАТА
+        for msg in st.session_state.messages:
+            if msg["role"] != "system":
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
 
-    # ЛИМИТЫ
-    if not can_send:
-        st.markdown(f"""
-        <div class='limit-alert'>
-            <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
-            Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
-            Возвращайся завтра, система перезагрузится.
-        </div>
-        """, unsafe_allow_html=True)
-        
-    # ВВОД ПОЛЬЗОВАТЕЛЯ
-    elif prompt := st.chat_input("Напиши мне..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+        # СООБЩЕНИЯ ОБ ИСЧЕРПАНИИ ЛИМИТОВ
+        if not can_send:
+            if st.session_state.is_vip:
+                st.markdown("""
+                <div class='limit-alert' style='border-color: #00E676;'>
+                    <b>🔋 Нейронная сеть перегружена.</b><br>
+                    На сегодня мы проделали отличную работу, но тебе нужен отдых для усвоения данных.<br>
+                    Система перейдет в спящий режим до завтра. Подыши и отдохни.
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div class='limit-alert' style='border-color: #FF3D00;'>
+                    <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
+                    Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
+                    <i>Чтобы получить полный доступ (VIP), напиши в <b>Отдел заботы</b> в левом меню.</i>
+                </div>
+                """, unsafe_allow_html=True)
+            
+        # ВВОД ПОЛЬЗОВАТЕЛЯ
+        elif prompt := st.chat_input("Напиши мне..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"): st.markdown(prompt)
 
-        if not st.session_state.is_vip:
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
 
-        # --- ЛОГИКА КАЛИБРОВКИ В ДИАЛОГЕ ---
-        if st.session_state.calibration_step > 0:
-            step = st.session_state.calibration_step
-            resp = ""
-            
-            if step == 1:
-                db.update_profile(st.session_state.row_num, "read_book", prompt)
-                st.session_state.user_profile["read_book"] = prompt
-                if "нет" in prompt.lower():
-                    resp = "Понял. Очень рекомендую прочитать ее в свободное время, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                else:
-                    resp = "Отлично, значит мы говорим на одном языке. Идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                st.session_state.calibration_step = 2
+            # --- ЛОГИКА КАЛИБРОВКИ ---
+            if st.session_state.calibration_step > 0:
+                step = st.session_state.calibration_step
+                resp = ""
                 
-            elif step == 2:
-                db.update_profile(st.session_state.row_num, "frequency", prompt)
-                st.session_state.user_profile["frequency"] = prompt
-                resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
-                st.session_state.calibration_step = 3
-                
-            elif step == 3:
-                db.update_profile(st.session_state.row_num, "triggers", prompt)
-                st.session_state.user_profile["triggers"] = prompt
-                resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
-                st.session_state.calibration_step = 4
-                
-            elif step == 4:
-                db.update_profile(st.session_state.row_num, "history", prompt)
-                st.session_state.user_profile["history"] = prompt
-                resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
-                st.session_state.calibration_step = 5
-                
-            elif step == 5:
-                db.update_profile(st.session_state.row_num, "state", prompt)
-                st.session_state.user_profile["state"] = prompt
-                resp = "Данные приняты. Профиль Врага оцифрован. Алгоритмы защиты настроены.\nМатрица готова к работе."
-                st.session_state.calibration_step = 0
-                
-            with st.chat_message("assistant"): st.markdown(resp)
-            st.session_state.messages.append({"role": "assistant", "content": resp})
-            db.save_history(st.session_state.row_num, st.session_state.messages)
-            
-            # Если калибровка только что закончилась - перезагружаем страницу, чтобы выдать Послание День 1
-            if st.session_state.calibration_step == 0:
-                st.session_state.reading_message = True
-                time.sleep(1.5) # Небольшая пауза для эффекта загрузки
-                st.rerun()
-
-        # --- ПАСХАЛКИ И ОБЫЧНЫЙ AI-ОТВЕТ ---
-        else:
-            easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
-            if any(word in prompt.lower() for word in easter_eggs):
-                resp = random.choice([
-                    "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
-                    "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
-                ])
+                if step == 1:
+                    db.update_profile(st.session_state.row_num, "read_book", prompt)
+                    st.session_state.user_profile["read_book"] = prompt
+                    book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
+                    if "нет" in prompt.lower():
+                        resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                    else:
+                        resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                    st.session_state.calibration_step = 2
+                    
+                elif step == 2:
+                    db.update_profile(st.session_state.row_num, "frequency", prompt)
+                    st.session_state.user_profile["frequency"] = prompt
+                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
+                    st.session_state.calibration_step = 3
+                    
+                elif step == 3:
+                    db.update_profile(st.session_state.row_num, "triggers", prompt)
+                    st.session_state.user_profile["triggers"] = prompt
+                    resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
+                    st.session_state.calibration_step = 4
+                    
+                elif step == 4:
+                    db.update_profile(st.session_state.row_num, "history", prompt)
+                    st.session_state.user_profile["history"] = prompt
+                    resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
+                    st.session_state.calibration_step = 5
+                    
+                elif step == 5:
+                    db.update_profile(st.session_state.row_num, "state", prompt)
+                    st.session_state.user_profile["state"] = prompt
+                    resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
+                    st.session_state.calibration_step = 0
+                    
                 with st.chat_message("assistant"): st.markdown(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
+                
+                if st.session_state.calibration_step == 0:
+                    st.session_state.reading_message = True
+                    time.sleep(1.5) 
+                    st.rerun()
 
+            # --- ОБЫЧНЫЙ AI-ОТВЕТ ---
             else:
-                with st.chat_message("assistant"):
-                    with st.spinner("Оцифровка мыслей..."):
-                        sys_prompt = settings.get_system_prompt(
-                            st.session_state.username, 
-                            st.session_state.user_profile, 
-                            BOOK_SUMMARY
-                        )
-                        full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
-                        
-                        txt = None
-                        for i in range(3):
-                            if model:
-                                try:
-                                    txt = model.generate_content(full_p).text
-                                    break
-                                except: time.sleep(1)
-                        
-                        if txt:
-                            st.markdown(txt)
-                            st.session_state.messages.append({"role": "assistant", "content": txt})
-                            db.save_history(st.session_state.row_num, st.session_state.messages)
-                        else: st.error("Сбой связи. Матрица сопротивляется. Попробуй еще раз.")
+                easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
+                if any(word in prompt.lower() for word in easter_eggs):
+                    resp = random.choice([
+                        "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
+                        "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
+                    ])
+                    with st.chat_message("assistant"): st.markdown(resp)
+                    st.session_state.messages.append({"role": "assistant", "content": resp})
+                    db.save_history(st.session_state.row_num, st.session_state.messages)
+
+                else:
+                    with st.chat_message("assistant"):
+                        with st.spinner("Оцифровка мыслей..."):
+                            sys_prompt = settings.get_system_prompt(
+                                st.session_state.username, 
+                                st.session_state.user_profile, 
+                                BOOK_SUMMARY
+                            )
+                            full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
+                            
+                            txt = None
+                            for i in range(3):
+                                if model:
+                                    try:
+                                        txt = model.generate_content(full_p).text
+                                        break
+                                    except: time.sleep(1)
+                            
+                            if txt:
+                                st.markdown(txt)
+                                st.session_state.messages.append({"role": "assistant", "content": txt})
+                                db.save_history(st.session_state.row_num, st.session_state.messages)
+                            else: st.error("Сбой связи. Матрица сопротивляется. Попробуй еще раз.")
