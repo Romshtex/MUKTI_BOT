@@ -26,6 +26,10 @@ try:
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
+# --- КАСТОМНЫЕ ВЕКТОРНЫЕ АВАТАРЫ (SVG) ---
+USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232196F3' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E"
+BOT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300E676' d='M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-6 0h2v2h-2V9zm-6 0h2v2H8V9z'/%3E%3C/svg%3E"
+
 # --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
 st.markdown("""
 <style>
@@ -259,21 +263,21 @@ else:
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
+        # Шаблон заполняется всегда, если пользователь не VIP
         default_text = ""
-        msgs_today = int(db.load_user(st.session_state.user_email)[0][3]) if db.load_user(st.session_state.user_email)[0] else 0
-        if not st.session_state.is_vip and msgs_today >= 10:
-            default_text = "Привет, Архитектор!\n\nЯ прошел первый день калибровки и готов к серьезной работе с МУКТИ. Прошу открыть мне Полный доступ (VIP)."
+        if not st.session_state.is_vip:
+            default_text = "Привет, Архитектор!\n\nПрошу открыть мне Полный доступ (VIP) к системе МУКТИ. Готов к работе."
             
         with st.form("care_form"):
             user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
             if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
                 if user_msg.strip():
-                    # 1. Отправляем письмо Архитектору
+                    # Отправляем письмо Архитектору
                     subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
                     body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
                     res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
                     
-                    # 2. Если это запрос на VIP, сразу отправляем автоответ Пользователю!
+                    # Логика Автоответа с реквизитами Пользователю
                     msg_upper = user_msg.upper()
                     if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
                         subj_user = "МУКТИ: Активация Полного доступа (VIP)"
@@ -341,10 +345,11 @@ else:
         with col2: 
             st.markdown(f"**Энергия:** {limit_text}")
 
+        # ИСТОРИЯ ЧАТА С КАСТОМНЫМИ SVG ИКОНКАМИ
         for msg in st.session_state.messages:
             if msg["role"] != "system":
-                avatar_icon = "🟢" if msg["role"] == "assistant" else "🔵"
-                with st.chat_message(msg["role"], avatar=avatar_icon):
+                av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
+                with st.chat_message(msg["role"], avatar=av):
                     st.markdown(msg["content"])
 
         if not can_send:
@@ -371,7 +376,7 @@ else:
             
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user", avatar="🔵"): st.markdown(prompt)
+            with st.chat_message("user", avatar=USER_AVATAR): st.markdown(prompt)
 
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
@@ -414,7 +419,7 @@ else:
                     resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
                     st.session_state.calibration_step = 0
                     
-                with st.chat_message("assistant", avatar="🟢"): st.markdown(resp)
+                with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
                 db.save_history(st.session_state.row_num, st.session_state.messages)
                 
@@ -430,12 +435,12 @@ else:
                         "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
                         "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
                     ])
-                    with st.chat_message("assistant", avatar="🟢"): st.markdown(resp)
+                    with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
                     st.session_state.messages.append({"role": "assistant", "content": resp})
                     db.save_history(st.session_state.row_num, st.session_state.messages)
 
                 else:
-                    with st.chat_message("assistant", avatar="🟢"):
+                    with st.chat_message("assistant", avatar=BOT_AVATAR):
                         with st.spinner("Оцифровка мыслей..."):
                             sys_prompt = settings.get_system_prompt(
                                 st.session_state.username, 
