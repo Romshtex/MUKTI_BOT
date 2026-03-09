@@ -52,10 +52,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES ---
-@st.cache_resource
-def get_manager():
-    return stx.CookieManager()
-cookie_manager = get_manager()
+cookie_manager = stx.CookieManager(key="mukti_cookies")
 
 # --- МОДЕЛЬ ---
 @st.cache_resource
