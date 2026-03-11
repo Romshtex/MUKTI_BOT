@@ -26,7 +26,7 @@ def get_db():
         return client.open("MUKTI_DB").sheet1
     except: return None
 
-# ТЕПЕРЬ ИЩЕМ ПО EMAIL В 1-Й КОЛОНКЕ
+# ИЩЕМ ПО EMAIL В 1-Й КОЛОНКЕ
 def load_user(email):
     sheet = get_db()
     if not sheet: return None, None
@@ -37,7 +37,7 @@ def load_user(email):
     except: pass
     return None, None
 
-# ТЕПЕРЬ РЕГИСТРИРУЕМ С EMAIL
+# РЕГИСТРИРУЕМ С EMAIL
 def register_user(email, username, password):
     sheet = get_db()
     if not sheet: return "ERROR"
@@ -77,13 +77,32 @@ def update_profile(row_num, key, value):
             sheet.update_cell(row_num, 6, json.dumps(data, ensure_ascii=False))
         except: pass
 
+# --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ПАНЕЛИ АРХИТЕКТОРА (ПОД GOOGLE SHEETS) ---
 def get_all_users():
-    import sqlite3
-    # ВАЖНО: Посмотри в других функциях выше, как именно называется твой файл БД 
-    # (обычно это 'mukti.db' или 'database.db') и впиши его сюда:
-    conn = sqlite3.connect("mukti.db") 
-    cur = conn.cursor()
-    cur.execute("SELECT rowid, email, username, profile_json FROM users")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+    sheet = get_db()
+    if not sheet: return []
+    try:
+        # Получаем все данные из таблицы разом (чтобы не перегружать API Google)
+        records = sheet.get_all_values()
+        users = []
+        
+        # Перебираем строки. idx - это индекс в списке (начинается с 0), 
+        # поэтому номер строки в Google Sheets будет idx + 1
+        for idx, row in enumerate(records):
+            if not row or len(row) < 6: continue 
+            
+            # Пропускаем строку с заголовками, если она есть
+            if row[0].lower() == "email": continue
+            
+            r_num = idx + 1
+            u_email = row[0]
+            u_name = row[1]
+            p_json = row[5] # Профиль в формате JSON находится в 6-й колонке (индекс 5)
+            
+            # Добавляем данные в список в формате: (номер_строки, email, имя, json_профиля)
+            users.append((r_num, u_email, u_name, p_json))
+            
+        return users
+    except Exception as e:
+        print(f"Ошибка выгрузки базы: {e}")
+        return []
