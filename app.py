@@ -132,13 +132,13 @@ def load_user_to_session(email):
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
         
-        # Обновляем трекер активности для рассыльщика
+        # Обновляем активность
         st.session_state.user_profile["last_active"] = str(date.today())
         db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
         
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
-            welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            welcome = f"Приветствую, {st.session_state.username}. Я - твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
             
@@ -244,7 +244,6 @@ elif st.session_state.reading_message:
         if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
-            # Обновляем активность
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "msg_day", next_day)
             db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
@@ -256,7 +255,7 @@ elif st.session_state.reading_message:
         st.rerun()
 
 # ==========================================
-# ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ ИЛИ ОТДЕЛ ЗАБОТЫ)
+# ОСНОВНОЙ ИНТЕРФЕЙС
 # ==========================================
 else:
     with st.sidebar:
@@ -275,6 +274,13 @@ else:
             st.session_state.current_view = "care"
             st.rerun()
             
+        # --- ПАНЕЛЬ АРХИТЕКТОРА (Только для mukti.system@yandex.com) ---
+        if st.session_state.user_email == "mukti.system@yandex.com" or st.session_state.user_email == YANDEX_EMAIL:
+            st.markdown("---")
+            if st.button("🛠 ПАНЕЛЬ АРХИТЕКТОРА"):
+                st.session_state.current_view = "admin"
+                st.rerun()
+                
         st.markdown("---")
         if st.button("🚪 ВЫХОД"):
             cookie_manager.delete("mukti_user")
@@ -282,8 +288,73 @@ else:
             time.sleep(0.5)
             st.rerun()
 
+    # --- ВЬЮ: ПАНЕЛЬ АРХИТЕКТОРА ---
+    if st.session_state.current_view == "admin":
+        st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ПАНЕЛЬ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
+        st.markdown("Управление базой и системная рассылка напоминаний.")
+        
+        if st.button("🚀 ЗАПУСТИТЬ ПРОТОКОЛ РАССЫЛКИ (3, 7, 14 дней)", use_container_width=True):
+            with st.spinner("Сбор данных и отправка писем..."):
+                conn = db.create_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT rowid, email, username, profile_json FROM users")
+                users = cur.fetchall()
+                conn.close()
+                
+                sent_count = 0
+                today_date = date.today()
+                
+                for u in users:
+                    r_num, u_email, u_name, p_json = u
+                    try:
+                        prof = json.loads(p_json) if p_json else {}
+                    except: prof = {}
+                    
+                    if prof.get("unsubscribed") == True:
+                        continue
+                        
+                    last_active_str = prof.get("last_active") or prof.get("last_msg_date")
+                    if not last_active_str: continue
+                    
+                    try:
+                        last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
+                    except: continue
+                    
+                    days_inactive = (today_date - last_active_date).days
+                    reminders_sent = prof.get("reminders_sent", [])
+                    
+                    subj = ""
+                    body = ""
+                    rem_type = 0
+                    
+                    if days_inactive >= 14 and 14 not in reminders_sent:
+                        rem_type = 14
+                        subj = "Перевод профиля в спящий режим"
+                        body = f"Привет, {u_name}. Две недели без связи.\n\nЯ понимаю, что не каждый готов выйти из Матрицы с первой попытки. Иногда нужно время, чтобы устать от старого сценария настолько, чтобы захотеть реальных перемен. И это нормально - это твой путь.\n\nСегодня я перевожу твой профиль в спящий режим. Я больше не буду присылать тебе системные уведомления.\n\nНо помни одно: твое место в терминале навсегда закреплено за тобой. Если через месяц или через год ты проснешься с мыслью, что пора окончательно удалить вредоносный код из своей жизни - просто перейди по ссылке, введи свой пароль, и Наставник продолжит работу с того же места.\n\nДо связи. Архитектор.\nhttps://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                    
+                    elif days_inactive >= 7 and 7 not in reminders_sent and 14 not in reminders_sent:
+                        rem_type = 7
+                        subj = "Кто сейчас управляет твоим временем?"
+                        body = f"Привет, {u_name}. Прошла ровно неделя тишины.\n\nЕсли ты сейчас справляешься сам и Гость молчит - я искренне рад. Но чаще всего недельная пауза означает другое: старые привычки пытаются вернуть себе контроль.\n\nЕсли произошел срыв - не вини себя. Чувство вины - это любимое топливо зависимости. Система МУКТИ создана не для того, чтобы тебя ругать, а для того, чтобы хладнокровно разобрать ошибку в коде и сделать тебя сильнее.\n\nНе нужно начинать всё сначала. Просто вернись в чат и честно скажи Наставнику, что произошло. Мы просто обнулим этот сбой и пойдем дальше.\n\nТерминал открыт: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                    
+                    elif days_inactive >= 3 and 3 not in reminders_sent and 7 not in reminders_sent and 14 not in reminders_sent:
+                        rem_type = 3
+                        subj = "Терминал МУКТИ ожидает отклика..."
+                        body = f"Приветствую, {u_name}. На связи Архитектор.\n\nЯ заметил, что ты не заходил в терминал МУКТИ уже 3 дня. Всё в порядке?\n\nЗнаешь, на старте это абсолютно нормальная реакция. Когда мы начинаем переписывать нейронные связи, старая программа («Гость») чувствует угрозу и начинает саботировать процесс. Она шепчет: «Давай потом», «У тебя нет времени», «Это всё ерунда».\n\nНе поддавайся. Тебе не обязательно писать длинные тексты. Просто зайди в систему прямо сейчас и напиши Наставнику одну фразу: как прошел твой сегодняшний день.\n\nТвой прогресс сохранен. Жду тебя внутри: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                    
+                    if rem_type > 0:
+                        res = send_email(u_email, subj, body)
+                        if res == "OK":
+                            reminders_sent.append(rem_type)
+                            prof["reminders_sent"] = reminders_sent
+                            db.update_field(r_num, 5, json.dumps(prof))
+                            sent_count += 1
+                            time.sleep(1) # Пауза, чтобы Яндекс не заблокировал за спам
+                            
+                st.success(f"✅ Протокол завершен. Отправлено писем: {sent_count}")
+
     # ВЬЮ: ОТДЕЛ ЗАБОТЫ
-    if st.session_state.current_view == "care":
+    elif st.session_state.current_view == "care":
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
@@ -313,7 +384,7 @@ else:
 - Приоритетная поддержка.
 
 Стоимость и оплата:
-Полная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена — всего 610 рублей.
+Полная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 610 рублей.
 
 Как активировать доступ прямо сейчас:
 1. Сделай перевод 610 рублей по номеру: +7 (905) 294-52-45 (Сбербанк).
@@ -400,7 +471,6 @@ else:
 
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
-            # При написании сообщения тоже обновляем дату активности
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
 
