@@ -423,11 +423,35 @@ elif st.session_state.reading_message:
 # ==========================================
 # ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
 # ==========================================
+# ==========================================
+# ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
+# ==========================================
 else:
+    # --- 1. ПРЕДВАРИТЕЛЬНЫЙ РАСЧЕТ ЭНЕРГИИ ---
+    msgs_today = 0
+    today_str = str(date.today())
+    
+    row_data, _ = db.load_user(st.session_state.user_email)
+    if row_data:
+        last_date = row_data[4] if len(row_data) > 4 else today_str
+        msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
+        if last_date != today_str:
+            msgs_today = 0
+            db.update_field(st.session_state.row_num, 5, today_str) 
+            db.update_field(st.session_state.row_num, 4, msgs_today) 
+
+    msg_day = int(st.session_state.user_profile.get("msg_day", 0))
+    is_day_one = (msg_day <= 1)
+    current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
+    limit_text = f"{msgs_today} / {current_limit}"
+    can_send = msgs_today < current_limit
+
+    # --- 2. БОКОВОЕ МЕНЮ ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.username}")
-        msg_day = st.session_state.user_profile.get("msg_day", 0)
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
+        st.markdown(f"**Энергия:** {limit_text}") # <-- ДОБАВЛЕНО В МЕНЮ
+        
         if st.session_state.is_vip:
             st.markdown("🌟 **Статус: Полный доступ**")
         st.markdown("---")
@@ -442,7 +466,8 @@ else:
                 
         st.markdown("---")
         if st.button("🚪 ВЫХОД"):
-            cookie_manager.delete("mukti_user")
+            try: cookie_manager.delete("mukti_user") # Безопасное удаление куки
+            except: pass
             st.session_state.logged_in = False
             time.sleep(0.5)
             st.rerun()
@@ -481,23 +506,6 @@ else:
 
     # ВЬЮ: ЧАТ
     else:
-        msgs_today = 0
-        today_str = str(date.today())
-        
-        row_data, _ = db.load_user(st.session_state.user_email)
-        if row_data:
-            last_date = row_data[4] if len(row_data) > 4 else today_str
-            msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
-            if last_date != today_str:
-                msgs_today = 0
-                db.update_field(st.session_state.row_num, 5, today_str) 
-                db.update_field(st.session_state.row_num, 4, msgs_today) 
-
-        is_day_one = (msg_day <= 1)
-        current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
-        limit_text = f"{msgs_today} / {current_limit}"
-        can_send = msgs_today < current_limit
-
         col1, col2 = st.columns([3, 1])
         with col1: 
             if st.session_state.is_vip: st.markdown("**Режим:** 🌟 Полный доступ")
