@@ -244,16 +244,15 @@ if not st.session_state.logged_in:
 # ==========================================
 # ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
+# ==========================================
+# ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
+# ==========================================
 elif st.session_state.user_email == "mukti.system@yandex.com":
     st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 СЕКРЕТНЫЙ ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # 1. СБОР СТАТИСТИКИ
-    conn = db.create_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT rowid, email, username, profile_json, 'TRUE' as is_vip FROM users") # Заглушка, парсим ниже
-    all_users = cur.fetchall()
-    conn.close()
+    # 1. СБОР СТАТИСТИКИ (Используем новую функцию)
+    all_users = db.get_all_users()
     
     total_users = 0
     vip_users = 0
@@ -263,8 +262,8 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
     today_date = date.today()
     
     for u in all_users:
-        r_num, u_email, u_name, p_json, _ = u
-        if u_email == "mukti.system@yandex.com": continue # Не считаем админа
+        r_num, u_email, u_name, p_json = u
+        if u_email == "mukti.system@yandex.com" or u_email == YANDEX_EMAIL: continue 
         
         total_users += 1
         try: prof = json.loads(p_json) if p_json else {}
@@ -272,7 +271,6 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
         
         # Проверяем VIP
         is_vip = prof.get("is_vip", False)
-        # Также проверяем через БД, загрузив пользователя полностью
         row_full, _ = db.load_user(u_email)
         if row_full and len(row_full) > 7 and row_full[7] == "TRUE":
             is_vip = True
@@ -318,9 +316,7 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                 row, r_num = db.load_user(target_email)
                 if row:
                     try:
-                        # Обновляем столбец 7 (если он существует)
                         db.update_field(r_num, 7, "TRUE")
-                        # А также дублируем в JSON профиль для надежности
                         prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                         prof["is_vip"] = True
                         db.update_field(r_num, 5, json.dumps(prof))
@@ -337,8 +333,8 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
             with st.spinner("Сбор данных и отправка писем..."):
                 sent_count = 0
                 for u in all_users:
-                    r_num, u_email, u_name, p_json, _ = u
-                    if u_email == "mukti.system@yandex.com": continue
+                    r_num, u_email, u_name, p_json = u
+                    if u_email == "mukti.system@yandex.com" or u_email == YANDEX_EMAIL: continue
                     
                     try: prof = json.loads(p_json) if p_json else {}
                     except: prof = {}
