@@ -244,9 +244,6 @@ if not st.session_state.logged_in:
 # ==========================================
 # ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
-# ==========================================
-# ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
-# ==========================================
 elif st.session_state.user_email == "mukti.system@yandex.com":
     st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 СЕКРЕТНЫЙ ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
@@ -390,7 +387,8 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
         
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚪 ВЫЙТИ ИЗ ТЕРМИНАЛА АРХИТЕКТОРА", use_container_width=True):
-        cookie_manager.delete("mukti_user")
+        try: cookie_manager.delete("mukti_user")
+        except: pass
         st.session_state.logged_in = False
         time.sleep(0.5)
         st.rerun()
