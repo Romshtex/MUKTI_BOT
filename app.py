@@ -58,6 +58,20 @@ st.markdown("""
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
+# --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
+if "unsubscribe" in st.query_params:
+    unsub_email = st.query_params["unsubscribe"]
+    row_data, r_num = db.load_user(unsub_email)
+    if row_data:
+        try:
+            profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+        except:
+            profile = {}
+        profile["unsubscribed"] = True
+        db.update_field(r_num, 5, json.dumps(profile))
+        st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
+        st.query_params.clear()
+
 # --- МОДЕЛЬ ---
 @st.cache_resource
 def get_model():
@@ -117,6 +131,10 @@ def load_user_to_session(email):
         
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
+        
+        # Обновляем трекер активности для рассыльщика
+        st.session_state.user_profile["last_active"] = str(date.today())
+        db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
         
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
@@ -205,6 +223,9 @@ if not st.session_state.logged_in:
                         if res == "OK": st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
                         else: st.error(f"Сбой отправки: {res}")
                     else: st.error("Аватар с таким Email не найден.")
+                    
+    # ЮРИДИЧЕСКИЕ ССЫЛКИ
+    st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #00E676; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #00E676; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
 
 # ==========================================
 # ЕЖЕДНЕВНОЕ ПОСЛАНИЕ
@@ -223,8 +244,11 @@ elif st.session_state.reading_message:
         if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
+            # Обновляем активность
+            st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "msg_day", next_day)
             db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
+            db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
             st.session_state.reading_message = False
             st.rerun()
     else:
@@ -263,7 +287,6 @@ else:
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
-        # Шаблон заполняется всегда, если пользователь не VIP
         default_text = ""
         if not st.session_state.is_vip:
             default_text = "Привет, Архитектор!\n\nПрошу открыть мне Полный доступ (VIP) к системе МУКТИ. Готов к работе."
@@ -272,12 +295,10 @@ else:
             user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
             if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
                 if user_msg.strip():
-                    # Отправляем письмо Архитектору
                     subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
                     body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
                     res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
                     
-                    # Логика Автоответа с реквизитами Пользователю
                     msg_upper = user_msg.upper()
                     if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
                         subj_user = "МУКТИ: Активация Полного доступа (VIP)"
@@ -345,7 +366,6 @@ else:
         with col2: 
             st.markdown(f"**Энергия:** {limit_text}")
 
-        # ИСТОРИЯ ЧАТА С КАСТОМНЫМИ SVG ИКОНКАМИ
         for msg in st.session_state.messages:
             if msg["role"] != "system":
                 av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
@@ -380,6 +400,9 @@ else:
 
             msgs_today += 1
             db.update_field(st.session_state.row_num, 4, msgs_today)
+            # При написании сообщения тоже обновляем дату активности
+            st.session_state.user_profile["last_active"] = str(date.today())
+            db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
 
             if st.session_state.calibration_step > 0:
                 step = st.session_state.calibration_step
