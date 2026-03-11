@@ -76,3 +76,14 @@ def update_profile(row_num, key, value):
             data[key] = value
             sheet.update_cell(row_num, 6, json.dumps(data, ensure_ascii=False))
         except: pass
+
+def get_all_users():
+    import sqlite3
+    # ВАЖНО: Посмотри в других функциях выше, как именно называется твой файл БД 
+    # (обычно это 'mukti.db' или 'database.db') и впиши его сюда:
+    conn = sqlite3.connect("mukti.db") 
+    cur = conn.cursor()
+    cur.execute("SELECT rowid, email, username, profile_json FROM users")
+    rows = cur.fetchall()
+    conn.close()
+    return rows
