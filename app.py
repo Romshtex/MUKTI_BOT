@@ -8,6 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import extra_streamlit_components as stx  
+import pandas as pd
 
 # ИМПОРТ МОДУЛЕЙ
 import settings
@@ -16,7 +17,7 @@ import messages as msg_module
 
 # --- НАСТРОЙКИ ---
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
-YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "")
+YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "mukti.system@yandex.com")
 YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
 
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -52,6 +53,8 @@ st.markdown("""
         border: 1px solid rgba(0, 230, 118, 0.2) !important;
     }
     h1, h2, h3 { color: #00E676 !important; }
+    /* Стиль для метрик в Дашборде */
+    div[data-testid="stMetricValue"] { color: #00E676 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -124,15 +127,26 @@ def load_user_to_session(email):
         st.session_state.user_email = email
         st.session_state.username = row_data[1] 
         st.session_state.row_num = r_num
-        st.session_state.is_vip = (len(row_data) > 7 and row_data[7] == "TRUE")
         
+        # Загрузка профиля
         try: st.session_state.user_profile = json.loads(row_data[5]) if len(row_data)>5 else {}
         except: st.session_state.user_profile = {}
+        
+        # Проверка VIP-статуса (в столбце 7 или в JSON профиле)
+        is_vip_db = (len(row_data) > 7 and row_data[7] == "TRUE")
+        is_vip_json = st.session_state.user_profile.get("is_vip", False)
+        st.session_state.is_vip = is_vip_db or is_vip_json
         
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
         
-        # Обновляем активность
+        # Если это Архитектор, пропускаем всё и идем в админку
+        if email == "mukti.system@yandex.com":
+            st.session_state.current_view = "admin"
+            st.session_state.reading_message = False
+            return True
+
+        # Обновляем активность только для обычных пользователей
         st.session_state.user_profile["last_active"] = str(date.today())
         db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
         
@@ -228,96 +242,113 @@ if not st.session_state.logged_in:
     st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #00E676; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #00E676; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
 
 # ==========================================
-# ЕЖЕДНЕВНОЕ ПОСЛАНИЕ
+# ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
-elif st.session_state.reading_message:
-    msg_day = int(st.session_state.user_profile.get("msg_day", 0))
-    next_day = msg_day + 1
-    message_text = msg_module.get_message_for_day(next_day)
+elif st.session_state.user_email == "mukti.system@yandex.com":
+    st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 СЕКРЕТНЫЙ ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
+    st.markdown("---")
     
-    if message_text:
-        st.markdown(f"<div style='border: 2px solid #00E676; padding: 20px; border-radius: 10px; background: rgba(0, 230, 118, 0.05);'>", unsafe_allow_html=True)
-        st.markdown(f"<h3 style='color: #00E676;'>ПОСЛАНИЕ НА ДЕНЬ</h3>", unsafe_allow_html=True)
-        st.markdown(message_text)
-        st.markdown("</div><br>", unsafe_allow_html=True)
+    # 1. СБОР СТАТИСТИКИ
+    conn = db.create_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT rowid, email, username, profile_json, 'TRUE' as is_vip FROM users") # Заглушка, парсим ниже
+    all_users = cur.fetchall()
+    conn.close()
+    
+    total_users = 0
+    vip_users = 0
+    active_3_days = 0
+    table_data = []
+    
+    today_date = date.today()
+    
+    for u in all_users:
+        r_num, u_email, u_name, p_json, _ = u
+        if u_email == "mukti.system@yandex.com": continue # Не считаем админа
         
-        if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
-            st.session_state.user_profile["msg_day"] = next_day
-            st.session_state.user_profile["last_msg_date"] = get_mukti_date()
-            st.session_state.user_profile["last_active"] = str(date.today())
-            db.update_profile(st.session_state.row_num, "msg_day", next_day)
-            db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
-            db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
-            st.session_state.reading_message = False
-            st.rerun()
-    else:
-        st.session_state.reading_message = False
-        st.rerun()
-
-# ==========================================
-# ОСНОВНОЙ ИНТЕРФЕЙС
-# ==========================================
-else:
-    with st.sidebar:
-        st.markdown(f"### 👤 {st.session_state.username}")
-        msg_day = st.session_state.user_profile.get("msg_day", 0)
-        st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
-        if st.session_state.is_vip:
-            st.markdown("🌟 **Статус: Полный доступ**")
-        st.markdown("---")
+        total_users += 1
+        try: prof = json.loads(p_json) if p_json else {}
+        except: prof = {}
         
-        if st.button("💬 ТЕРМИНАЛ (Чат)"):
-            st.session_state.current_view = "chat"
-            st.rerun()
+        # Проверяем VIP
+        is_vip = prof.get("is_vip", False)
+        # Также проверяем через БД, загрузив пользователя полностью
+        row_full, _ = db.load_user(u_email)
+        if row_full and len(row_full) > 7 and row_full[7] == "TRUE":
+            is_vip = True
             
-        if st.button("💌 ОТДЕЛ ЗАБОТЫ"):
-            st.session_state.current_view = "care"
-            st.rerun()
+        if is_vip: vip_users += 1
             
-        # --- ПАНЕЛЬ АРХИТЕКТОРА (Только для mukti.system@yandex.com) ---
-        if st.session_state.user_email == "mukti.system@yandex.com" or st.session_state.user_email == YANDEX_EMAIL:
-            st.markdown("---")
-            if st.button("🛠 ПАНЕЛЬ АРХИТЕКТОРА"):
-                st.session_state.current_view = "admin"
-                st.rerun()
-                
-        st.markdown("---")
-        if st.button("🚪 ВЫХОД"):
-            cookie_manager.delete("mukti_user")
-            st.session_state.logged_in = False
-            time.sleep(0.5)
-            st.rerun()
-
-    # --- ВЬЮ: ПАНЕЛЬ АРХИТЕКТОРА ---
-    if st.session_state.current_view == "admin":
-        st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ПАНЕЛЬ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
-        st.markdown("Управление базой и системная рассылка напоминаний.")
+        last_active_str = prof.get("last_active") or prof.get("last_msg_date")
+        days_inactive = 999
+        if last_active_str:
+            try:
+                last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
+                days_inactive = (today_date - last_active_date).days
+                if days_inactive <= 3: active_3_days += 1
+            except: pass
+            
+        msg_day = prof.get("msg_day", 0)
         
-        if st.button("🚀 ЗАПУСТИТЬ ПРОТОКОЛ РАССЫЛКИ (3, 7, 14 дней)", use_container_width=True):
-            with st.spinner("Сбор данных и отправка писем..."):
-                conn = db.create_connection()
-                cur = conn.cursor()
-                cur.execute("SELECT rowid, email, username, profile_json FROM users")
-                users = cur.fetchall()
-                conn.close()
-                
-                sent_count = 0
-                today_date = date.today()
-                
-                for u in users:
-                    r_num, u_email, u_name, p_json = u
+        table_data.append({
+            "Email": u_email,
+            "Имя": u_name,
+            "День": msg_day,
+            "VIP": "Да" if is_vip else "Нет",
+            "Был в сети": last_active_str if last_active_str else "Никогда",
+            "Отписан": "Да" if prof.get("unsubscribed") else "Нет"
+        })
+        
+    # БЛОК МЕТРИК
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Всего Аватаров", total_users)
+    col2.metric("VIP Пользователи", vip_users)
+    col3.metric("Активны (3 дня)", active_3_days)
+    
+    st.markdown("---")
+    
+    # БЛОК УПРАВЛЕНИЯ
+    col_vip, col_mail = st.columns(2)
+    
+    with col_vip:
+        st.markdown("### 👑 Выдача VIP-доступа")
+        with st.form("vip_form"):
+            target_email = st.text_input("Введи Email для активации VIP").strip().lower()
+            if st.form_submit_button("АКТИВИРОВАТЬ VIP"):
+                row, r_num = db.load_user(target_email)
+                if row:
                     try:
-                        prof = json.loads(p_json) if p_json else {}
+                        # Обновляем столбец 7 (если он существует)
+                        db.update_field(r_num, 7, "TRUE")
+                        # А также дублируем в JSON профиль для надежности
+                        prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
+                        prof["is_vip"] = True
+                        db.update_field(r_num, 5, json.dumps(prof))
+                        st.success(f"Доступ VIP активирован для {target_email}!")
+                    except Exception as e:
+                        st.error(f"Ошибка БД: {e}")
+                else:
+                    st.error("Аватар с таким Email не найден.")
+
+    with col_mail:
+        st.markdown("### 🚀 Протокол рассылки")
+        st.markdown("Автоматическая проверка базы и отправка писем (3, 7, 14 дней).")
+        if st.button("ЗАПУСТИТЬ РАССЫЛКУ", type="primary", use_container_width=True):
+            with st.spinner("Сбор данных и отправка писем..."):
+                sent_count = 0
+                for u in all_users:
+                    r_num, u_email, u_name, p_json, _ = u
+                    if u_email == "mukti.system@yandex.com": continue
+                    
+                    try: prof = json.loads(p_json) if p_json else {}
                     except: prof = {}
                     
-                    if prof.get("unsubscribed") == True:
-                        continue
+                    if prof.get("unsubscribed") == True: continue
                         
                     last_active_str = prof.get("last_active") or prof.get("last_msg_date")
                     if not last_active_str: continue
                     
-                    try:
-                        last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
+                    try: last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
                     except: continue
                     
                     days_inactive = (today_date - last_active_date).days
@@ -349,12 +380,81 @@ else:
                             prof["reminders_sent"] = reminders_sent
                             db.update_field(r_num, 5, json.dumps(prof))
                             sent_count += 1
-                            time.sleep(1) # Пауза, чтобы Яндекс не заблокировал за спам
+                            time.sleep(1) 
                             
-                st.success(f"✅ Протокол завершен. Отправлено писем: {sent_count}")
+                st.success(f"✅ Рассылка завершена. Писем отправлено: {sent_count}")
+
+    st.markdown("---")
+    st.markdown("### 👥 База Аватаров (CRM)")
+    if table_data:
+        df = pd.DataFrame(table_data)
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("Матрица пока пуста. Ожидаем первых Аватаров.")
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚪 ВЫЙТИ ИЗ ТЕРМИНАЛА АРХИТЕКТОРА", use_container_width=True):
+        cookie_manager.delete("mukti_user")
+        st.session_state.logged_in = False
+        time.sleep(0.5)
+        st.rerun()
+
+# ==========================================
+# ЕЖЕДНЕВНОЕ ПОСЛАНИЕ (ДЛЯ АВАТАРОВ)
+# ==========================================
+elif st.session_state.reading_message:
+    msg_day = int(st.session_state.user_profile.get("msg_day", 0))
+    next_day = msg_day + 1
+    message_text = msg_module.get_message_for_day(next_day)
+    
+    if message_text:
+        st.markdown(f"<div style='border: 2px solid #00E676; padding: 20px; border-radius: 10px; background: rgba(0, 230, 118, 0.05);'>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: #00E676;'>ПОСЛАНИЕ НА ДЕНЬ</h3>", unsafe_allow_html=True)
+        st.markdown(message_text)
+        st.markdown("</div><br>", unsafe_allow_html=True)
+        
+        if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
+            st.session_state.user_profile["msg_day"] = next_day
+            st.session_state.user_profile["last_msg_date"] = get_mukti_date()
+            st.session_state.user_profile["last_active"] = str(date.today())
+            db.update_profile(st.session_state.row_num, "msg_day", next_day)
+            db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
+            db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
+            st.session_state.reading_message = False
+            st.rerun()
+    else:
+        st.session_state.reading_message = False
+        st.rerun()
+
+# ==========================================
+# ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
+# ==========================================
+else:
+    with st.sidebar:
+        st.markdown(f"### 👤 {st.session_state.username}")
+        msg_day = st.session_state.user_profile.get("msg_day", 0)
+        st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
+        if st.session_state.is_vip:
+            st.markdown("🌟 **Статус: Полный доступ**")
+        st.markdown("---")
+        
+        if st.button("💬 ТЕРМИНАЛ (Чат)"):
+            st.session_state.current_view = "chat"
+            st.rerun()
+            
+        if st.button("💌 ОТДЕЛ ЗАБОТЫ"):
+            st.session_state.current_view = "care"
+            st.rerun()
+                
+        st.markdown("---")
+        if st.button("🚪 ВЫХОД"):
+            cookie_manager.delete("mukti_user")
+            st.session_state.logged_in = False
+            time.sleep(0.5)
+            st.rerun()
 
     # ВЬЮ: ОТДЕЛ ЗАБОТЫ
-    elif st.session_state.current_view == "care":
+    if st.session_state.current_view == "care":
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
@@ -373,34 +473,12 @@ else:
                     msg_upper = user_msg.upper()
                     if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
                         subj_user = "МУКТИ: Активация Полного доступа (VIP)"
-                        body_user = f"""Приветствую, {st.session_state.username}! На связи Архитектор проекта.
-
-В данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.
-
-Что ты получишь, перейдя в режим VIP (Полный доступ):
-- Расширенный резерв энергии (до 20 диалогов в день).
-- Персональная аналитика триггеров.
-- Непрерывность (доступ на 61 день).
-- Приоритетная поддержка.
-
-Стоимость и оплата:
-Полная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 610 рублей.
-
-Как активировать доступ прямо сейчас:
-1. Сделай перевод 610 рублей по номеру: +7 (905) 294-52-45 (Сбербанк).
-2. Пришли скриншот чека ответным письмом на это сообщение.
-3. В течение нескольких часов я вручную переведу твой аккаунт в статус VIP.
-
-Готов выйти из Матрицы? Жду подтверждения.
-"""
+                        body_user = f"""Приветствую, {st.session_state.username}! На связи Архитектор проекта.\n\nВ данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.\n\nЧто ты получишь, перейдя в режим VIP (Полный доступ):\n- Расширенный резерв энергии (до 20 диалогов в день).\n- Персональная аналитика триггеров.\n- Непрерывность (доступ на 61 день).\n- Приоритетная поддержка.\n\nСтоимость и оплата:\nПолная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 610 рублей.\n\nКак активировать доступ прямо сейчас:\n1. Сделай перевод 610 рублей по номеру: +7 (905) 294-52-45 (Сбербанк).\n2. Пришли скриншот чека ответным письмом на это сообщение.\n3. В течение нескольких часов я вручную переведу твой аккаунт в статус VIP.\n\nГотов выйти из Матрицы? Жду подтверждения."""
                         send_email(st.session_state.user_email, subj_user, body_user)
 
-                    if res_admin == "OK":
-                        st.success("Сообщение успешно доставлено! Если это был запрос на VIP, инструкция уже выслана на твою почту.")
-                    else:
-                        st.error(f"Ошибка отправки: {res_admin}")
-                else:
-                    st.warning("Напиши текст сообщения.")
+                    if res_admin == "OK": st.success("Сообщение доставлено!")
+                    else: st.error(f"Ошибка: {res_admin}")
+                else: st.warning("Напиши текст сообщения.")
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🔙 ВЕРНУТЬСЯ В ТЕРМИНАЛ", use_container_width=True):
@@ -422,11 +500,7 @@ else:
                 db.update_field(st.session_state.row_num, 4, msgs_today) 
 
         is_day_one = (msg_day <= 1)
-        if st.session_state.is_vip:
-            current_limit = 20
-        else:
-            current_limit = 10 if is_day_one else 3
-
+        current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
         limit_text = f"{msgs_today} / {current_limit}"
         can_send = msgs_today < current_limit
 
@@ -434,8 +508,7 @@ else:
         with col1: 
             if st.session_state.is_vip: st.markdown("**Режим:** 🌟 Полный доступ")
             else: st.markdown(f"**Режим:** {'🟢 Базовый (День 1)' if is_day_one else '🔵 Базовый'}")
-        with col2: 
-            st.markdown(f"**Энергия:** {limit_text}")
+        with col2: st.markdown(f"**Энергия:** {limit_text}")
 
         for msg in st.session_state.messages:
             if msg["role"] != "system":
@@ -445,22 +518,9 @@ else:
 
         if not can_send:
             if st.session_state.is_vip:
-                st.markdown("""
-                <div class='limit-alert' style='border-color: #00E676;'>
-                    <b>🔋 Нейронная сеть перегружена.</b><br>
-                    На сегодня мы проделали отличную работу, но тебе нужен отдых для усвоения данных.<br>
-                    Система перейдет в спящий режим до завтра. Подыши и отдохни.
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>🔋 Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
             else:
-                st.markdown("""
-                <div class='limit-alert' style='border-color: #FF3D00;'>
-                    <b>⚠️ Энергия наставника исчерпана на сегодня.</b><br>
-                    Сделай паузу. Подыши. Понаблюдай за мыслями.<br>
-                    <i>Завтра базовый резерв энергии восстановится, и мы сможем продолжить. Или запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i>
-                </div>
-                """, unsafe_allow_html=True)
-                
+                st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>⚠️ Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
                 if st.button("💌 НАПИСАТЬ В ОТДЕЛ ЗАБОТЫ", use_container_width=True):
                     st.session_state.current_view = "care"
                     st.rerun()
@@ -477,39 +537,30 @@ else:
             if st.session_state.calibration_step > 0:
                 step = st.session_state.calibration_step
                 resp = ""
-                
                 if step == 1:
                     db.update_profile(st.session_state.row_num, "read_book", prompt)
                     st.session_state.user_profile["read_book"] = prompt
-                    book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
-                    if "нет" in prompt.lower():
-                        resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                    else:
-                        resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                    resp = "Понял. Если захочешь освежить знания, книга лежит [по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/).\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?**"
                     st.session_state.calibration_step = 2
-                    
                 elif step == 2:
                     db.update_profile(st.session_state.row_num, "frequency", prompt)
                     st.session_state.user_profile["frequency"] = prompt
-                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
+                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?**"
                     st.session_state.calibration_step = 3
-                    
                 elif step == 3:
                     db.update_profile(st.session_state.row_num, "triggers", prompt)
                     st.session_state.user_profile["triggers"] = prompt
-                    resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
+                    resp = "Понял. **Какой у тебя опыт сопротивления?**"
                     st.session_state.calibration_step = 4
-                    
                 elif step == 4:
                     db.update_profile(st.session_state.row_num, "history", prompt)
                     st.session_state.user_profile["history"] = prompt
-                    resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
+                    resp = "И последнее. **Что ты чувствуешь прямо сейчас?**"
                     st.session_state.calibration_step = 5
-                    
                 elif step == 5:
                     db.update_profile(st.session_state.row_num, "state", prompt)
                     st.session_state.user_profile["state"] = prompt
-                    resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
+                    resp = "Данные приняты. Алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня?**"
                     st.session_state.calibration_step = 0
                     
                 with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
@@ -520,28 +571,18 @@ else:
                     st.session_state.reading_message = True
                     time.sleep(1.5) 
                     st.rerun()
-
             else:
                 easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                 if any(word in prompt.lower() for word in easter_eggs):
-                    resp = random.choice([
-                        "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
-                        "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
-                    ])
+                    resp = "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы."
                     with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
                     st.session_state.messages.append({"role": "assistant", "content": resp})
                     db.save_history(st.session_state.row_num, st.session_state.messages)
-
                 else:
                     with st.chat_message("assistant", avatar=BOT_AVATAR):
                         with st.spinner("Оцифровка мыслей..."):
-                            sys_prompt = settings.get_system_prompt(
-                                st.session_state.username, 
-                                st.session_state.user_profile, 
-                                BOOK_SUMMARY
-                            )
+                            sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, BOOK_SUMMARY)
                             full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
-                            
                             txt = None
                             for i in range(3):
                                 if model:
@@ -549,9 +590,8 @@ else:
                                         txt = model.generate_content(full_p).text
                                         break
                                     except: time.sleep(1)
-                            
                             if txt:
                                 st.markdown(txt)
                                 st.session_state.messages.append({"role": "assistant", "content": txt})
                                 db.save_history(st.session_state.row_num, st.session_state.messages)
-                            else: st.error("Сбой связи. Матрица сопротивляется. Попробуй еще раз.")
+                            else: st.error("Сбой связи. Попробуй еще раз.")
