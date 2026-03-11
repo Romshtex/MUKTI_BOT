@@ -31,7 +31,7 @@ except ImportError:
 USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232196F3' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E"
 BOT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300E676' d='M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-6 0h2v2h-2V9zm-6 0h2v2H8V9z'/%3E%3C/svg%3E"
 
-# --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
+# --- CSS: МАТРИЦА С ТОНИРОВКОЙ И ЯРКИМ МЕНЮ ---
 st.markdown("""
 <style>
     .stApp > header { background-color: transparent !important; }
@@ -53,8 +53,20 @@ st.markdown("""
         border: 1px solid rgba(0, 230, 118, 0.2) !important;
     }
     h1, h2, h3 { color: #00E676 !important; }
-    /* Стиль для метрик в Дашборде */
     div[data-testid="stMetricValue"] { color: #00E676 !important; }
+    
+    /* --- ДЕЛАЕМ СТРЕЛОЧКУ МЕНЮ ВСЕГДА ВИДИМОЙ И ЗЕЛЕНОЙ --- */
+    [data-testid="collapsedControl"] {
+        background-color: rgba(30, 30, 30, 0.9) !important;
+        border: 1px solid #00E676 !important;
+        border-radius: 8px !important;
+        color: #00E676 !important;
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.3) !important;
+    }
+    [data-testid="collapsedControl"] svg {
+        fill: #00E676 !important;
+        color: #00E676 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,11 +140,9 @@ def load_user_to_session(email):
         st.session_state.username = row_data[1] 
         st.session_state.row_num = r_num
         
-        # Загрузка профиля
         try: st.session_state.user_profile = json.loads(row_data[5]) if len(row_data)>5 else {}
         except: st.session_state.user_profile = {}
         
-        # Проверка VIP-статуса (в столбце 7 или в JSON профиле)
         is_vip_db = (len(row_data) > 7 and row_data[7] == "TRUE")
         is_vip_json = st.session_state.user_profile.get("is_vip", False)
         st.session_state.is_vip = is_vip_db or is_vip_json
@@ -140,13 +150,11 @@ def load_user_to_session(email):
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
         
-        # Если это Архитектор, пропускаем всё и идем в админку
         if email == "mukti.system@yandex.com":
             st.session_state.current_view = "admin"
             st.session_state.reading_message = False
             return True
 
-        # Обновляем активность только для обычных пользователей
         st.session_state.user_profile["last_active"] = str(date.today())
         db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
         
@@ -181,7 +189,7 @@ if not st.session_state.logged_in:
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #00E676;'>МУКТИ</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы зависимости</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы алкогольной зависимости</p>", unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
@@ -248,7 +256,6 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
     st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 СЕКРЕТНЫЙ ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # 1. СБОР СТАТИСТИКИ (Используем новую функцию)
     all_users = db.get_all_users()
     
     total_users = 0
@@ -266,7 +273,6 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
         try: prof = json.loads(p_json) if p_json else {}
         except: prof = {}
         
-        # Проверяем VIP
         is_vip = prof.get("is_vip", False)
         row_full, _ = db.load_user(u_email)
         if row_full and len(row_full) > 7 and row_full[7] == "TRUE":
@@ -294,7 +300,6 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
             "Отписан": "Да" if prof.get("unsubscribed") else "Нет"
         })
         
-    # БЛОК МЕТРИК
     col1, col2, col3 = st.columns(3)
     col1.metric("Всего Аватаров", total_users)
     col2.metric("VIP Пользователи", vip_users)
@@ -302,7 +307,6 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
     
     st.markdown("---")
     
-    # БЛОК УПРАВЛЕНИЯ
     col_vip, col_mail = st.columns(2)
     
     with col_vip:
@@ -423,11 +427,7 @@ elif st.session_state.reading_message:
 # ==========================================
 # ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
 # ==========================================
-# ==========================================
-# ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
-# ==========================================
 else:
-    # --- 1. ПРЕДВАРИТЕЛЬНЫЙ РАСЧЕТ ЭНЕРГИИ ---
     msgs_today = 0
     today_str = str(date.today())
     
@@ -446,11 +446,10 @@ else:
     limit_text = f"{msgs_today} / {current_limit}"
     can_send = msgs_today < current_limit
 
-    # --- 2. БОКОВОЕ МЕНЮ ---
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.username}")
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
-        st.markdown(f"**Энергия:** {limit_text}") # <-- ДОБАВЛЕНО В МЕНЮ
+        st.markdown(f"**Энергия:** {limit_text}")
         
         if st.session_state.is_vip:
             st.markdown("🌟 **Статус: Полный доступ**")
@@ -466,7 +465,7 @@ else:
                 
         st.markdown("---")
         if st.button("🚪 ВЫХОД"):
-            try: cookie_manager.delete("mukti_user") # Безопасное удаление куки
+            try: cookie_manager.delete("mukti_user")
             except: pass
             st.session_state.logged_in = False
             time.sleep(0.5)
@@ -495,8 +494,10 @@ else:
                         body_user = f"""Приветствую, {st.session_state.username}! На связи Архитектор проекта.\n\nВ данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.\n\nЧто ты получишь, перейдя в режим VIP (Полный доступ):\n- Расширенный резерв энергии (до 20 диалогов в день).\n- Персональная аналитика триггеров.\n- Непрерывность (доступ на 61 день).\n- Приоритетная поддержка.\n\nСтоимость и оплата:\nПолная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 610 рублей.\n\nКак активировать доступ прямо сейчас:\n1. Сделай перевод 610 рублей по номеру: +7 (905) 294-52-45 (Сбербанк).\n2. Пришли скриншот чека ответным письмом на это сообщение.\n3. В течение нескольких часов я вручную переведу твой аккаунт в статус VIP.\n\nГотов выйти из Матрицы? Жду подтверждения."""
                         send_email(st.session_state.user_email, subj_user, body_user)
 
-                    if res_admin == "OK": st.success("Сообщение доставлено!")
-                    else: st.error(f"Ошибка: {res_admin}")
+                    if res_admin == "OK": 
+                        st.success("Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
+                    else: 
+                        st.error(f"Ошибка: {res_admin}")
                 else: st.warning("Напиши текст сообщения.")
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -510,6 +511,7 @@ else:
         with col1: 
             if st.session_state.is_vip: st.markdown("**Режим:** 🌟 Полный доступ")
             else: st.markdown(f"**Режим:** {'🟢 Базовый (День 1)' if is_day_one else '🔵 Базовый'}")
+        
         with col2: st.markdown(f"**Энергия:** {limit_text}")
 
         for msg in st.session_state.messages:
