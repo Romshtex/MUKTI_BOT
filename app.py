@@ -34,7 +34,19 @@ BOT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewB
 # --- CSS: МАТРИЦА С ТОНИРОВКОЙ И ЯРКИМ МЕНЮ ---
 st.markdown("""
 <style>
-    .stApp > header { background-color: transparent !important; }
+    /* Делаем верхнюю панель (где живет стрелочка) видимой и темной */
+    .stApp > header { 
+        background-color: rgba(20, 20, 20, 0.95) !important; 
+        border-bottom: 1px solid rgba(0, 230, 118, 0.3) !important;
+    }
+    
+    /* Принудительно красим ВСЕ кнопки и иконки в шапке в неоново-зеленый */
+    .stApp > header * {
+        color: #00E676 !important;
+        fill: #00E676 !important;
+    }
+
+    /* Основной фон и текст */
     .main {
         background-color: rgba(14, 17, 23, 0.85) !important; 
         border-radius: 15px;
@@ -42,6 +54,8 @@ st.markdown("""
     p, div, span, h1, h2, h3, h4, h5, h6, label, li {
         color: #FAFAFA !important;
     }
+    
+    /* Поля ввода и чат */
     .stTextInput>div>div>input, .stTextArea>div>div>textarea {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: #00E676 !important;
@@ -52,21 +66,10 @@ st.markdown("""
         color: #FAFAFA !important;
         border: 1px solid rgba(0, 230, 118, 0.2) !important;
     }
+    
+    /* Заголовки и метрики */
     h1, h2, h3 { color: #00E676 !important; }
     div[data-testid="stMetricValue"] { color: #00E676 !important; }
-    
-    /* --- ДЕЛАЕМ СТРЕЛОЧКУ МЕНЮ ВСЕГДА ВИДИМОЙ И ЗЕЛЕНОЙ --- */
-    [data-testid="collapsedControl"] {
-        background-color: rgba(30, 30, 30, 0.9) !important;
-        border: 1px solid #00E676 !important;
-        border-radius: 8px !important;
-        color: #00E676 !important;
-        box-shadow: 0 0 10px rgba(0, 230, 118, 0.3) !important;
-    }
-    [data-testid="collapsedControl"] svg {
-        fill: #00E676 !important;
-        color: #00E676 !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
