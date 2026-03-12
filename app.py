@@ -456,7 +456,7 @@ else:
     status_text = "🌟 VIP" if st.session_state.is_vip else ("🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый")
 
     # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
-    with st.expander(f"⚙️ ПАНЕЛЬ УПРАВЛЕНИЯ АВАТАРА: {st.session_state.username}", expanded=False):
+    with st.expander(f"⚙️ ПАНЕЛЬ УПРАВЛЕНИЯ: {st.session_state.username}", expanded=False):
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
         st.markdown(f"**Энергия:** {limit_text}")
         st.markdown(f"**Режим:** {status_text}")
