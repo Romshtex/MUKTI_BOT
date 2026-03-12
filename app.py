@@ -61,6 +61,19 @@ st.markdown("""
     }
     h1, h2, h3 { color: #00E676 !important; }
     div[data-testid="stMetricValue"] { color: #00E676 !important; }
+    
+    /* Стили для выпадающего меню (expander) */
+    [data-testid="stExpander"] {
+        border-color: #00E676 !important;
+        background-color: rgba(20, 20, 20, 0.8) !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stExpander"] summary {
+        color: #00E676 !important;
+    }
+    [data-testid="stExpander"] summary svg {
+        fill: #00E676 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -442,37 +455,29 @@ else:
     can_send = msgs_today < current_limit
     status_text = "🌟 VIP" if st.session_state.is_vip else ("🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый")
 
-    # --- ВЕРХНЯЯ ПАНЕЛЬ И ВЫХОД ---
-    col_header, col_exit = st.columns([3, 1])
-    with col_header:
-        st.markdown(f"### 👤 {st.session_state.username}")
-        st.markdown(f"**День:** {msg_day}/61 &nbsp;|&nbsp; **Энергия:** {limit_text} &nbsp;|&nbsp; **Режим:** {status_text}")
-    with col_exit:
-        if st.button("🚪 ВЫХОД", use_container_width=True):
-            try: cookie_manager.delete("mukti_user")
-            except: pass
-            st.session_state.logged_in = False
-            time.sleep(0.5)
-            st.rerun()
-            
-    # --- ПСЕВДО-ВКЛАДКИ НАВИГАЦИИ ---
-    tab1, tab2 = st.columns(2)
-    with tab1:
-        if st.session_state.current_view == "chat":
-            st.button("💬 ТЕРМИНАЛ (Открыто)", disabled=True, use_container_width=True)
-        else:
+    # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
+    with st.expander(f"⚙️ ПАНЕЛЬ УПРАВЛЕНИЯ АВАТАРА: {st.session_state.username}", expanded=False):
+        st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
+        st.markdown(f"**Энергия:** {limit_text}")
+        st.markdown(f"**Режим:** {status_text}")
+        
+        st.markdown("---")
+        col_nav1, col_nav2, col_nav3 = st.columns(3)
+        with col_nav1:
             if st.button("💬 ТЕРМИНАЛ", use_container_width=True):
                 st.session_state.current_view = "chat"
                 st.rerun()
-    with tab2:
-        if st.session_state.current_view == "care":
-            st.button("💌 ОТДЕЛ ЗАБОТЫ (Открыто)", disabled=True, use_container_width=True)
-        else:
+        with col_nav2:
             if st.button("💌 ОТДЕЛ ЗАБОТЫ", use_container_width=True):
                 st.session_state.current_view = "care"
                 st.rerun()
-
-    st.markdown("---")
+        with col_nav3:
+            if st.button("🚪 ВЫХОД", use_container_width=True):
+                try: cookie_manager.delete("mukti_user")
+                except: pass
+                st.session_state.logged_in = False
+                time.sleep(0.5)
+                st.rerun()
 
     # ВЬЮ: ОТДЕЛ ЗАБОТЫ
     if st.session_state.current_view == "care":
