@@ -260,7 +260,7 @@ if not st.session_state.logged_in:
 # ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
 elif st.session_state.user_email == "mukti.system@yandex.com":
-    st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 СЕКРЕТНЫЙ ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
     all_users = db.get_all_users()
