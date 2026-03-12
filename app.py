@@ -31,22 +31,17 @@ except ImportError:
 USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232196F3' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E"
 BOT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300E676' d='M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-6 0h2v2h-2V9zm-6 0h2v2H8V9z'/%3E%3C/svg%3E"
 
-# --- CSS: МАТРИЦА С ТОНИРОВКОЙ И ЯРКИМ МЕНЮ ---
+# --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
 st.markdown("""
 <style>
-    /* Делаем верхнюю панель (где живет стрелочка) видимой и темной */
     .stApp > header { 
         background-color: rgba(20, 20, 20, 0.95) !important; 
         border-bottom: 1px solid rgba(0, 230, 118, 0.3) !important;
     }
-    
-    /* Принудительно красим ВСЕ кнопки и иконки в шапке в неоново-зеленый */
     .stApp > header * {
         color: #00E676 !important;
         fill: #00E676 !important;
     }
-
-    /* Основной фон и текст */
     .main {
         background-color: rgba(14, 17, 23, 0.85) !important; 
         border-radius: 15px;
@@ -54,8 +49,6 @@ st.markdown("""
     p, div, span, h1, h2, h3, h4, h5, h6, label, li {
         color: #FAFAFA !important;
     }
-    
-    /* Поля ввода и чат */
     .stTextInput>div>div>input, .stTextArea>div>div>textarea {
         background-color: rgba(30, 30, 30, 0.9) !important;
         color: #00E676 !important;
@@ -66,8 +59,6 @@ st.markdown("""
         color: #FAFAFA !important;
         border: 1px solid rgba(0, 230, 118, 0.2) !important;
     }
-    
-    /* Заголовки и метрики */
     h1, h2, h3 { color: #00E676 !important; }
     div[data-testid="stMetricValue"] { color: #00E676 !important; }
 </style>
@@ -163,7 +154,7 @@ def load_user_to_session(email):
         
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
-            welcome = f"Приветствую, {st.session_state.username}. Я - твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
             
@@ -431,6 +422,7 @@ elif st.session_state.reading_message:
 # ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
 # ==========================================
 else:
+    # --- РАСЧЕТ ЭНЕРГИИ ---
     msgs_today = 0
     today_str = str(date.today())
     
@@ -448,31 +440,30 @@ else:
     current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
     limit_text = f"{msgs_today} / {current_limit}"
     can_send = msgs_today < current_limit
+    status_text = "🌟 VIP" if st.session_state.is_vip else ("🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый")
 
-    with st.sidebar:
-        st.markdown(f"### 👤 {st.session_state.username}")
-        st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
-        st.markdown(f"**Энергия:** {limit_text}")
-        
-        if st.session_state.is_vip:
-            st.markdown("🌟 **Статус: Полный доступ**")
-        st.markdown("---")
-        
-        if st.button("💬 ТЕРМИНАЛ (Чат)"):
+    # --- ВЕРХНЯЯ ПРИБОРНАЯ ПАНЕЛЬ (ВМЕСТО БОКОВОГО МЕНЮ) ---
+    st.markdown(f"### 👤 {st.session_state.username}")
+    st.markdown(f"**День:** {msg_day}/61 &nbsp;|&nbsp; **Энергия:** {limit_text} &nbsp;|&nbsp; **Режим:** {status_text}")
+    
+    col_nav1, col_nav2, col_nav3 = st.columns(3)
+    with col_nav1:
+        if st.button("💬 ТЕРМИНАЛ", use_container_width=True):
             st.session_state.current_view = "chat"
             st.rerun()
-            
-        if st.button("💌 ОТДЕЛ ЗАБОТЫ"):
+    with col_nav2:
+        if st.button("💌 ОТДЕЛ ЗАБОТЫ", use_container_width=True):
             st.session_state.current_view = "care"
             st.rerun()
-                
-        st.markdown("---")
-        if st.button("🚪 ВЫХОД"):
+    with col_nav3:
+        if st.button("🚪 ВЫХОД", use_container_width=True):
             try: cookie_manager.delete("mukti_user")
             except: pass
             st.session_state.logged_in = False
             time.sleep(0.5)
             st.rerun()
+            
+    st.markdown("---")
 
     # ВЬЮ: ОТДЕЛ ЗАБОТЫ
     if st.session_state.current_view == "care":
@@ -502,21 +493,9 @@ else:
                     else: 
                         st.error(f"Ошибка: {res_admin}")
                 else: st.warning("Напиши текст сообщения.")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔙 ВЕРНУТЬСЯ В ТЕРМИНАЛ", use_container_width=True):
-            st.session_state.current_view = "chat"
-            st.rerun()
 
     # ВЬЮ: ЧАТ
     else:
-        col1, col2 = st.columns([3, 1])
-        with col1: 
-            if st.session_state.is_vip: st.markdown("**Режим:** 🌟 Полный доступ")
-            else: st.markdown(f"**Режим:** {'🟢 Базовый (День 1)' if is_day_one else '🔵 Базовый'}")
-        
-        with col2: st.markdown(f"**Энергия:** {limit_text}")
-
         for msg in st.session_state.messages:
             if msg["role"] != "system":
                 av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
@@ -528,9 +507,6 @@ else:
                 st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>🔋 Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
             else:
                 st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>⚠️ Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
-                if st.button("💌 НАПИСАТЬ В ОТДЕЛ ЗАБОТЫ", use_container_width=True):
-                    st.session_state.current_view = "care"
-                    st.rerun()
             
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -547,27 +523,31 @@ else:
                 if step == 1:
                     db.update_profile(st.session_state.row_num, "read_book", prompt)
                     st.session_state.user_profile["read_book"] = prompt
-                    resp = "Понял. Если захочешь освежить знания, книга лежит [по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/).\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?**"
+                    book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
+                    if "нет" in prompt.lower():
+                        resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                    else:
+                        resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
                     st.session_state.calibration_step = 2
                 elif step == 2:
                     db.update_profile(st.session_state.row_num, "frequency", prompt)
                     st.session_state.user_profile["frequency"] = prompt
-                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?**"
+                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
                     st.session_state.calibration_step = 3
                 elif step == 3:
                     db.update_profile(st.session_state.row_num, "triggers", prompt)
                     st.session_state.user_profile["triggers"] = prompt
-                    resp = "Понял. **Какой у тебя опыт сопротивления?**"
+                    resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
                     st.session_state.calibration_step = 4
                 elif step == 4:
                     db.update_profile(st.session_state.row_num, "history", prompt)
                     st.session_state.user_profile["history"] = prompt
-                    resp = "И последнее. **Что ты чувствуешь прямо сейчас?**"
+                    resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
                     st.session_state.calibration_step = 5
                 elif step == 5:
                     db.update_profile(st.session_state.row_num, "state", prompt)
                     st.session_state.user_profile["state"] = prompt
-                    resp = "Данные приняты. Алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня?**"
+                    resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
                     st.session_state.calibration_step = 0
                     
                 with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
@@ -581,7 +561,10 @@ else:
             else:
                 easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                 if any(word in prompt.lower() for word in easter_eggs):
-                    resp = "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы."
+                    resp = random.choice([
+                        "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
+                        "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
+                    ])
                     with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
                     st.session_state.messages.append({"role": "assistant", "content": resp})
                     db.save_history(st.session_state.row_num, st.session_state.messages)
