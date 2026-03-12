@@ -90,7 +90,7 @@ if "unsubscribe" in st.query_params:
         except:
             profile = {}
         profile["unsubscribed"] = True
-        db.update_field(r_num, 5, json.dumps(profile))
+        db.update_field(r_num, 6, json.dumps(profile)) # ИСПРАВЛЕНО НА 6 (Колонка profile)
         st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
         st.query_params.clear()
 
@@ -324,10 +324,10 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                 row, r_num = db.load_user(target_email)
                 if row:
                     try:
-                        db.update_field(r_num, 7, "TRUE")
+                        db.update_field(r_num, 8, "TRUE") # ИСПРАВЛЕНО НА 8 (Колонка H)
                         prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                         prof["is_vip"] = True
-                        db.update_field(r_num, 5, json.dumps(prof))
+                        db.update_field(r_num, 6, json.dumps(prof)) # ИСПРАВЛЕНО НА 6 (Колонка F)
                         st.success(f"Доступ VIP активирован для {target_email}!")
                     except Exception as e:
                         st.error(f"Ошибка БД: {e}")
@@ -382,7 +382,7 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                         if res == "OK":
                             reminders_sent.append(rem_type)
                             prof["reminders_sent"] = reminders_sent
-                            db.update_field(r_num, 5, json.dumps(prof))
+                            db.update_field(r_num, 6, json.dumps(prof)) # ИСПРАВЛЕНО НА 6 (Колонка F)
                             sent_count += 1
                             time.sleep(1) 
                             
@@ -510,7 +510,7 @@ else:
 🟢 Прямая поддержка: Приоритетная связь со мной (Архитектором) через Отдел Заботы.
 
 Стоимость и оплата:
-Полная стоимость подписки составляет 2990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 1220 рублей (это ровно 20 рублей в день за твою свободу).
+Полная стоимость подписки составляет 1990 рублей. Но так как ты являешься ранним участником (бета-тестером), для тебя действует специальная цена - всего 1220 рублей (это ровно 20 рублей в день за твою свободу).
 
 Как активировать доступ прямо сейчас:
 
@@ -524,6 +524,7 @@ else:
 
 С уважением Роман, Архитектор проекта МУКТИ"""
                         send_email(st.session_state.user_email, subj_user, body_user)
+
                     if res_admin == "OK": 
                         st.success("Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
                     else: 
