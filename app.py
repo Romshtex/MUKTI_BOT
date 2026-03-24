@@ -554,38 +554,51 @@ else:
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
 
+
             if st.session_state.calibration_step > 0:
                 step = st.session_state.calibration_step
                 resp = ""
-                if step == 1:
-                    db.update_profile(st.session_state.row_num, "read_book", prompt)
-                    st.session_state.user_profile["read_book"] = prompt
-                    book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
-                    if "нет" in prompt.lower():
-                        resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                    else:
-                        resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                    st.session_state.calibration_step = 2
-                elif step == 2:
-                    db.update_profile(st.session_state.row_num, "frequency", prompt)
-                    st.session_state.user_profile["frequency"] = prompt
-                    resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
-                    st.session_state.calibration_step = 3
-                elif step == 3:
-                    db.update_profile(st.session_state.row_num, "triggers", prompt)
-                    st.session_state.user_profile["triggers"] = prompt
-                    resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
-                    st.session_state.calibration_step = 4
-                elif step == 4:
-                    db.update_profile(st.session_state.row_num, "history", prompt)
-                    st.session_state.user_profile["history"] = prompt
-                    resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
-                    st.session_state.calibration_step = 5
-                elif step == 5:
-                    db.update_profile(st.session_state.row_num, "state", prompt)
-                    st.session_state.user_profile["state"] = prompt
-                    resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
+                
+                # --- ПЕРЕХВАТЧИК: ЕСЛИ АВАТАР УЖЕ СВОБОДЕН ---
+                sober_words = ["не пью", "бросил", "завязал", "трезв", "не употребляю", "давно свободен"]
+                if any(word in prompt.lower() for word in sober_words):
+                    # Записываем в базу, чтобы нейросеть (LLM) знала об этом в будущих диалогах
+                    db.update_profile(st.session_state.row_num, "history", "Уже не пьет: " + prompt)
+                    st.session_state.user_profile["history"] = "Уже не пьет: " + prompt
+                    resp = "Понял тебя. Ты уже вышел из системы — это отличный результат. В таком случае моя задача меняется: я буду помогать тебе отслеживать скрытые (фоновые) триггеры, защищать от откатов и развивать осознанность.\n\nПрофиль обновлен. Калибровка завершена.\n\n**Расскажи, как прошел твой день сегодня?**"
                     st.session_state.calibration_step = 0
+                
+                # --- СТАНДАРТНАЯ КАЛИБРОВКА (ДЛЯ ТЕХ, КТО В СИСТЕМЕ) ---
+                else:
+                    if step == 1:
+                        db.update_profile(st.session_state.row_num, "read_book", prompt)
+                        st.session_state.user_profile["read_book"] = prompt
+                        book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
+                        if "нет" in prompt.lower():
+                            resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                        else:
+                            resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                        st.session_state.calibration_step = 2
+                    elif step == 2:
+                        db.update_profile(st.session_state.row_num, "frequency", prompt)
+                        st.session_state.user_profile["frequency"] = prompt
+                        resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
+                        st.session_state.calibration_step = 3
+                    elif step == 3:
+                        db.update_profile(st.session_state.row_num, "triggers", prompt)
+                        st.session_state.user_profile["triggers"] = prompt
+                        resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
+                        st.session_state.calibration_step = 4
+                    elif step == 4:
+                        db.update_profile(st.session_state.row_num, "history", prompt)
+                        st.session_state.user_profile["history"] = prompt
+                        resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
+                        st.session_state.calibration_step = 5
+                    elif step == 5:
+                        db.update_profile(st.session_state.row_num, "state", prompt)
+                        st.session_state.user_profile["state"] = prompt
+                        resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
+                        st.session_state.calibration_step = 0
                     
                 with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
                 st.session_state.messages.append({"role": "assistant", "content": resp})
@@ -595,6 +608,7 @@ else:
                     st.session_state.reading_message = True
                     time.sleep(1.5) 
                     st.rerun()
+            
             else:
                 easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                 if any(word in prompt.lower() for word in easter_eggs):
