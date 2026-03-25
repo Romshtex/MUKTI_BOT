@@ -189,10 +189,18 @@ def load_user_to_session(email):
             welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
+        else:
+            # --- ВОССТАНОВЛЕНИЕ ШАГА КАЛИБРОВКИ ---
+            # Если страница была обновлена, вычисляем шаг по количеству сообщений
+            m_len = len(st.session_state.messages)
+            if m_len == 1: st.session_state.calibration_step = 1
+            elif m_len == 3: st.session_state.calibration_step = 2
+            elif m_len == 5: st.session_state.calibration_step = 3
+            elif m_len == 7: st.session_state.calibration_step = 4
+            elif m_len == 9: st.session_state.calibration_step = 5
+            else: st.session_state.calibration_step = 0
             
         current_date = get_mukti_date()
-        last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
-        msg_day = int(st.session_state.user_profile.get("msg_day", 0))
         
         if last_msg_date != current_date and msg_day < 61 and st.session_state.calibration_step == 0:
             st.session_state.reading_message = True
