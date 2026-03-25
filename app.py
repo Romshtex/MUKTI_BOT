@@ -81,7 +81,10 @@ st.markdown("""
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
 # --- ПРОВЕРКА СОГЛАСИЯ НА COOKIES ---
-if cookie_manager.get(cookie="cookies_accepted") != "true":
+if "cookies_accepted_session" not in st.session_state:
+    st.session_state.cookies_accepted_session = False
+
+if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="cookies_accepted") != "true":
     st.markdown("""
     <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #00E676; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
         <span style='color: #FAFAFA; font-size: 14px;'>
@@ -92,6 +95,8 @@ if cookie_manager.get(cookie="cookies_accepted") != "true":
     """, unsafe_allow_html=True)
     if st.button("✅ ПРИНЯТЬ И СКРЫТЬ", key="accept_cookies_btn", use_container_width=True):
         cookie_manager.set("cookies_accepted", "true", expires_at=datetime.now() + timedelta(days=365))
+        st.session_state.cookies_accepted_session = True
+        time.sleep(0.5) # Даем браузеру долю секунды на запись файла
         st.rerun()
 
 # --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
