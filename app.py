@@ -191,7 +191,6 @@ def load_user_to_session(email):
             db.save_history(st.session_state.row_num, st.session_state.messages)
         else:
             # --- ВОССТАНОВЛЕНИЕ ШАГА КАЛИБРОВКИ ---
-            # Если страница была обновлена, вычисляем шаг по количеству сообщений
             m_len = len(st.session_state.messages)
             if m_len == 1: st.session_state.calibration_step = 1
             elif m_len == 3: st.session_state.calibration_step = 2
@@ -201,6 +200,8 @@ def load_user_to_session(email):
             else: st.session_state.calibration_step = 0
             
         current_date = get_mukti_date()
+        last_msg_date = st.session_state.user_profile.get("last_msg_date", "")
+        msg_day = int(st.session_state.user_profile.get("msg_day", 0))
         
         if last_msg_date != current_date and msg_day < 61 and st.session_state.calibration_step == 0:
             st.session_state.reading_message = True
@@ -208,7 +209,7 @@ def load_user_to_session(email):
         st.session_state.current_view = "chat"
         return True
     return False
-
+    
 # ==========================================
 # АВТОЛОГИН ЧЕРЕЗ COOKIES
 # ==========================================
