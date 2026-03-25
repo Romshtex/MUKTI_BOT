@@ -8,7 +8,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import extra_streamlit_components as stx  
-import pandas as pd
 import hashlib
 import secrets
 import hmac
@@ -18,7 +17,7 @@ import settings
 import database as db
 import messages as msg_module
 
-# --- НАСТРОЙКИ СЕКРЕТОВ И БЕЗОПАСНОСТИ ---
+# --- НАСТРОЙКИ ---
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "mukti.system@yandex.com")
 YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
@@ -115,7 +114,7 @@ if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="
         time.sleep(0.5) # Даем браузеру долю секунды на запись файла
         st.rerun()
 
-# --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ (С ТОКЕНОМ) ---
+# --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
 if "unsubscribe" in st.query_params and "token" in st.query_params:
     unsub_email = st.query_params["unsubscribe"]
     token = st.query_params["token"]
@@ -123,10 +122,12 @@ if "unsubscribe" in st.query_params and "token" in st.query_params:
     if token == get_unsubscribe_token(unsub_email):
         row_data, r_num = db.load_user(unsub_email)
         if row_data:
-            try: profile = json.loads(row_data[5]) if len(row_data)>5 else {}
-            except: profile = {}
+            try:
+                profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+            except:
+                profile = {}
             profile["unsubscribed"] = True
-            db.update_field(r_num, db.COL_PROFILE, json.dumps(profile)) 
+            db.update_field(r_num, 6, json.dumps(profile)) 
             st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
             st.query_params.clear()
     else:
@@ -262,7 +263,7 @@ if not st.session_state.logged_in:
                         # Поддержка старых (незашифрованных) паролей с авто-обновлением
                         if db_pwd == pwd_hash or db_pwd == pwd_in:
                             if db_pwd == pwd_in:
-                                db.update_field(r_num, db.COL_PWD, pwd_hash) # Обновляем старый пароль на зашифрованный
+                                db.update_field(r_num, 3, pwd_hash) # Обновляем старый пароль на зашифрованный (Колонка 3)
                                 
                             cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
                             load_user_to_session(email_in)
@@ -303,12 +304,12 @@ if not st.session_state.logged_in:
                     row_data, r_num = db.load_user(rec_email)
                     if row_data:
                         new_temp_pwd = generate_temp_password()
-                        db.update_field(r_num, db.COL_PWD, hash_password(new_temp_pwd))
+                        db.update_field(r_num, 3, hash_password(new_temp_pwd))
                         
-                        subject = "МУКТИ: Восстановление доступа"
+                        subject = "МУКТИ: Доступ к системе"
                         body = f"Приветствую, {row_data[1]}.\n\nТвой новый временный пароль для доступа в систему: {new_temp_pwd}\n\nСразу после входа рекомендую сохранить его в надежном месте.\nАрхитектор."
                         res = send_email(rec_email, subject, body)
-                        if res == "OK": st.success("Письмо с новым паролем отправлено! Проверь почту (и папку Спам).")
+                        if res == "OK": st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
                         else: st.error(f"Сбой отправки: {res}")
                     else: st.error("Аватар с таким Email не найден.")
                     
@@ -383,10 +384,10 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                 row, r_num = db.load_user(target_email)
                 if row:
                     try:
-                        db.update_field(r_num, db.COL_VIP, "TRUE") 
+                        db.update_field(r_num, 8, "TRUE") 
                         prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                         prof["is_vip"] = True
-                        db.update_field(r_num, db.COL_PROFILE, json.dumps(prof)) 
+                        db.update_field(r_num, 6, json.dumps(prof)) 
                         st.success(f"Доступ VIP активирован для {target_email}!")
                     except Exception as e:
                         st.error(f"Ошибка БД: {e}")
@@ -444,7 +445,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                         if res == "OK":
                             reminders_sent.append(rem_type)
                             prof["reminders_sent"] = reminders_sent
-                            db.update_field(r_num, db.COL_PROFILE, json.dumps(prof)) 
+                            db.update_field(r_num, 6, json.dumps(prof)) 
                             sent_count += 1
                             time.sleep(1) 
                             
@@ -453,8 +454,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
     st.markdown("---")
     st.markdown("### 👥 База Аватаров (CRM)")
     if table_data:
-        df = pd.DataFrame(table_data)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(table_data, use_container_width=True)
     else:
         st.info("Матрица пока пуста. Ожидаем первых Аватаров.")
         
@@ -485,13 +485,18 @@ elif st.session_state.reading_message:
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
             st.session_state.user_profile["last_active"] = str(date.today())
             
-            # Пакетное обновление (Один вызов API вместо трёх)
-            db.update_profile_batch(st.session_state.row_num, {
-                "msg_day": next_day,
-                "last_msg_date": get_mukti_date(),
-                "last_active": str(date.today())
-            })
-            
+            # --- ИСПОЛЬЗУЕМ ПАКЕТНОЕ СОХРАНЕНИЕ ---
+            if hasattr(db, "update_profile_batch"):
+                db.update_profile_batch(st.session_state.row_num, {
+                    "msg_day": next_day,
+                    "last_msg_date": get_mukti_date(),
+                    "last_active": str(date.today())
+                })
+            else:
+                db.update_profile(st.session_state.row_num, "msg_day", next_day)
+                db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
+                db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
+                
             st.session_state.reading_message = False
             st.rerun()
     else:
@@ -512,8 +517,8 @@ else:
         msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
         if last_date != today_str:
             msgs_today = 0
-            db.update_field(st.session_state.row_num, db.COL_LAST_DATE, today_str) 
-            db.update_field(st.session_state.row_num, db.COL_MSGS_TODAY, msgs_today) 
+            db.update_field(st.session_state.row_num, 5, today_str) 
+            db.update_field(st.session_state.row_num, 4, msgs_today) 
 
     msg_day = int(st.session_state.user_profile.get("msg_day", 0))
     is_day_one = (msg_day <= 1)
@@ -636,7 +641,7 @@ else:
             with st.chat_message("user", avatar=USER_AVATAR): st.markdown(prompt)
 
             msgs_today += 1
-            db.update_field(st.session_state.row_num, db.COL_MSGS_TODAY, msgs_today)
+            db.update_field(st.session_state.row_num, 4, msgs_today)
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
 
