@@ -9,16 +9,23 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import extra_streamlit_components as stx  
 import pandas as pd
+import hashlib
+import secrets
+import hmac
 
 # ИМПОРТ МОДУЛЕЙ
 import settings
 import database as db
 import messages as msg_module
 
-# --- НАСТРОЙКИ ---
+# --- НАСТРОЙКИ СЕКРЕТОВ И БЕЗОПАСНОСТИ ---
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"] if "GOOGLE_API_KEY" in st.secrets else "NO_KEY"
 YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "mukti.system@yandex.com")
 YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
+
+# Новые ключи безопасности (добавь их в secrets.toml)
+SECRET_KEY = st.secrets.get("SECRET_KEY", "mukti_super_secret_matrix_key_2026")
+ADMIN_EMAILS = st.secrets.get("ADMIN_EMAILS", ["mukti.system@yandex.com"])
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -77,8 +84,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- ИНИЦИАЛИЗАЦИЯ COOKIES ---
+# --- ИНИЦИАЛИЗАЦИЯ COOKIES И КРИПТОГРАФИИ ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
+
+def hash_password(password):
+    return hashlib.sha256((password + SECRET_KEY).encode()).hexdigest()
+
+def generate_temp_password(length=8):
+    return secrets.token_urlsafe(length)[:length]
+
+def get_unsubscribe_token(email):
+    return hmac.new(SECRET_KEY.encode(), email.encode(), hashlib.sha256).hexdigest()
 
 # --- ПРОВЕРКА СОГЛАСИЯ НА COOKIES ---
 if "cookies_accepted_session" not in st.session_state:
@@ -99,18 +115,22 @@ if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="
         time.sleep(0.5) # Даем браузеру долю секунды на запись файла
         st.rerun()
 
-# --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
-if "unsubscribe" in st.query_params:
+# --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ (С ТОКЕНОМ) ---
+if "unsubscribe" in st.query_params and "token" in st.query_params:
     unsub_email = st.query_params["unsubscribe"]
-    row_data, r_num = db.load_user(unsub_email)
-    if row_data:
-        try:
-            profile = json.loads(row_data[5]) if len(row_data)>5 else {}
-        except:
-            profile = {}
-        profile["unsubscribed"] = True
-        db.update_field(r_num, 6, json.dumps(profile)) 
-        st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
+    token = st.query_params["token"]
+    
+    if token == get_unsubscribe_token(unsub_email):
+        row_data, r_num = db.load_user(unsub_email)
+        if row_data:
+            try: profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+            except: profile = {}
+            profile["unsubscribed"] = True
+            db.update_field(r_num, db.COL_PROFILE, json.dumps(profile)) 
+            st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
+            st.query_params.clear()
+    else:
+        st.error("Ошибка верификации. Недействительный токен отписки.")
         st.query_params.clear()
 
 # --- МОДЕЛЬ ---
@@ -176,7 +196,7 @@ def load_user_to_session(email):
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
         
-        if email == "mukti.system@yandex.com":
+        if email in ADMIN_EMAILS:
             st.session_state.current_view = "admin"
             st.session_state.reading_message = False
             return True
@@ -235,12 +255,21 @@ if not st.session_state.logged_in:
             if st.form_submit_button("ВОЙТИ"):
                 if email_in and pwd_in:
                     row_data, r_num = db.load_user(email_in)
-                    if row_data and row_data[2] == pwd_in:
-                        cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
-                        load_user_to_session(email_in)
-                        time.sleep(0.5) 
-                        st.rerun()
-                    else: st.error("Ошибка доступа. Неверный Email или Пароль.")
+                    if row_data:
+                        db_pwd = row_data[2]
+                        pwd_hash = hash_password(pwd_in)
+                        
+                        # Поддержка старых (незашифрованных) паролей с авто-обновлением
+                        if db_pwd == pwd_hash or db_pwd == pwd_in:
+                            if db_pwd == pwd_in:
+                                db.update_field(r_num, db.COL_PWD, pwd_hash) # Обновляем старый пароль на зашифрованный
+                                
+                            cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
+                            load_user_to_session(email_in)
+                            time.sleep(0.5) 
+                            st.rerun()
+                        else: st.error("Ошибка доступа. Неверный Email или Пароль.")
+                    else: st.error("Пользователь не найден.")
                 else: st.warning("Введи данные.")
 
     with tab2:
@@ -255,7 +284,7 @@ if not st.session_state.logged_in:
                 elif len(new_pwd) < 4:
                     st.error("Пароль должен быть не короче 4 символов.")
                 elif new_user:
-                    res = db.register_user(new_email, new_user, new_pwd)
+                    res = db.register_user(new_email, new_user, hash_password(new_pwd))
                     if res == "OK":
                         cookie_manager.set("mukti_user", new_email, expires_at=datetime.now() + timedelta(days=30))
                         load_user_to_session(new_email)
@@ -271,13 +300,15 @@ if not st.session_state.logged_in:
             rec_email = st.text_input("Введи свой Email").strip().lower()
             if st.form_submit_button("ВОССТАНОВИТЬ"):
                 if rec_email:
-                    row_data, _ = db.load_user(rec_email)
+                    row_data, r_num = db.load_user(rec_email)
                     if row_data:
-                        pwd = row_data[2]
-                        subject = "МУКТИ: Доступ к системе"
-                        body = f"Приветствую, {row_data[1]}.\n\nТвой пароль для доступа в систему: {pwd}\n\nНе теряй его.\nАрхитектор."
+                        new_temp_pwd = generate_temp_password()
+                        db.update_field(r_num, db.COL_PWD, hash_password(new_temp_pwd))
+                        
+                        subject = "МУКТИ: Восстановление доступа"
+                        body = f"Приветствую, {row_data[1]}.\n\nТвой новый временный пароль для доступа в систему: {new_temp_pwd}\n\nСразу после входа рекомендую сохранить его в надежном месте.\nАрхитектор."
                         res = send_email(rec_email, subject, body)
-                        if res == "OK": st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
+                        if res == "OK": st.success("Письмо с новым паролем отправлено! Проверь почту (и папку Спам).")
                         else: st.error(f"Сбой отправки: {res}")
                     else: st.error("Аватар с таким Email не найден.")
                     
@@ -287,7 +318,7 @@ if not st.session_state.logged_in:
 # ==========================================
 # ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
-elif st.session_state.user_email == "mukti.system@yandex.com":
+elif st.session_state.user_email in ADMIN_EMAILS:
     st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -302,7 +333,7 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
     
     for u in all_users:
         r_num, u_email, u_name, p_json = u
-        if u_email == "mukti.system@yandex.com" or u_email == YANDEX_EMAIL: continue 
+        if u_email in ADMIN_EMAILS or u_email == YANDEX_EMAIL: continue 
         
         total_users += 1
         try: prof = json.loads(p_json) if p_json else {}
@@ -352,10 +383,10 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                 row, r_num = db.load_user(target_email)
                 if row:
                     try:
-                        db.update_field(r_num, 8, "TRUE") 
+                        db.update_field(r_num, db.COL_VIP, "TRUE") 
                         prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                         prof["is_vip"] = True
-                        db.update_field(r_num, 6, json.dumps(prof)) 
+                        db.update_field(r_num, db.COL_PROFILE, json.dumps(prof)) 
                         st.success(f"Доступ VIP активирован для {target_email}!")
                     except Exception as e:
                         st.error(f"Ошибка БД: {e}")
@@ -370,7 +401,7 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                 sent_count = 0
                 for u in all_users:
                     r_num, u_email, u_name, p_json = u
-                    if u_email == "mukti.system@yandex.com" or u_email == YANDEX_EMAIL: continue
+                    if u_email in ADMIN_EMAILS or u_email == YANDEX_EMAIL: continue
                     
                     try: prof = json.loads(p_json) if p_json else {}
                     except: prof = {}
@@ -390,27 +421,30 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                     body = ""
                     rem_type = 0
                     
+                    unsub_token = get_unsubscribe_token(u_email)
+                    unsub_url = f"https://mukti-app.streamlit.app/?unsubscribe={u_email}&token={unsub_token}"
+                    
                     if days_inactive >= 14 and 14 not in reminders_sent:
                         rem_type = 14
                         subj = "Перевод профиля в спящий режим"
-                        body = f"Привет, {u_name}. Две недели без связи.\n\nЯ понимаю, что не каждый готов выйти из Матрицы с первой попытки. Иногда нужно время, чтобы устать от старого сценария настолько, чтобы захотеть реальных перемен. И это нормально - это твой путь.\n\nСегодня я перевожу твой профиль в спящий режим. Я больше не буду присылать тебе системные уведомления.\n\nНо помни одно: твое место в терминале навсегда закреплено за тобой. Если через месяц или через год ты проснешься с мыслью, что пора окончательно удалить вредоносный код из своей жизни - просто перейди по ссылке, введи свой пароль, и Наставник продолжит работу с того же места.\n\nДо связи. Архитектор.\nhttps://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                        body = f"Привет, {u_name}. Две недели без связи.\n\nЯ понимаю, что не каждый готов выйти из Матрицы с первой попытки. Иногда нужно время, чтобы устать от старого сценария настолько, чтобы захотеть реальных перемен. И это нормально - это твой путь.\n\nСегодня я перевожу твой профиль в спящий режим. Я больше не буду присылать тебе системные уведомления.\n\nНо помни одно: твое место в терминале навсегда закреплено за тобой. Если через месяц или через год ты проснешься с мыслью, что пора окончательно удалить вредоносный код из своей жизни - просто перейди по ссылке, введи свой пароль, и Наставник продолжит работу с того же места.\n\nДо связи. Архитектор.\nhttps://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
                     
                     elif days_inactive >= 7 and 7 not in reminders_sent and 14 not in reminders_sent:
                         rem_type = 7
                         subj = "Кто сейчас управляет твоим временем?"
-                        body = f"Привет, {u_name}. Прошла ровно неделя тишины.\n\nЕсли ты сейчас справляешься сам и Гость молчит - я искренне рад. Но чаще всего недельная пауза означает другое: старые привычки пытаются вернуть себе контроль.\n\nЕсли произошел срыв - не вини себя. Чувство вины - это любимое топливо зависимости. Система МУКТИ создана не для того, чтобы тебя ругать, а для того, чтобы хладнокровно разобрать ошибку в коде и сделать тебя сильнее.\n\nНе нужно начинать всё сначала. Просто вернись в чат и честно скажи Наставнику, что произошло. Мы просто обнулим этот сбой и пойдем дальше.\n\nТерминал открыт: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                        body = f"Привет, {u_name}. Прошла ровно неделя тишины.\n\nЕсли ты сейчас справляешься сам и Гость молчит - я искренне рад. Но чаще всего недельная пауза означает другое: старые привычки пытаются вернуть себе контроль.\n\nЕсли произошел срыв - не вини себя. Чувство вины - это любимое топливо зависимости. Система МУКТИ создана не для того, чтобы тебя ругать, а для того, чтобы хладнокровно разобрать ошибку в коде и сделать тебя сильнее.\n\nНе нужно начинать всё сначала. Просто вернись в чат и честно скажи Наставнику, что произошло. Мы просто обнулим этот сбой и пойдем дальше.\n\nТерминал открыт: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
                     
                     elif days_inactive >= 3 and 3 not in reminders_sent and 7 not in reminders_sent and 14 not in reminders_sent:
                         rem_type = 3
                         subj = "Терминал МУКТИ ожидает отклика..."
-                        body = f"Приветствую, {u_name}. На связи Архитектор.\n\nЯ заметил, что ты не заходил в терминал МУКТИ уже 3 дня. Всё в порядке?\n\nЗнаешь, на старте это абсолютно нормальная реакция. Когда мы начинаем переписывать нейронные связи, старая программа («Гость») чувствует угрозу и начинает саботировать процесс. Она шепчет: «Давай потом», «У тебя нет времени», «Это всё ерунда».\n\nНе поддавайся. Тебе не обязательно писать длинные тексты. Просто зайди в систему прямо сейчас и напиши Наставнику одну фразу: как прошел твой сегодняшний день.\n\nТвой прогресс сохранен. Жду тебя внутри: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: https://mukti-app.streamlit.app/?unsubscribe={u_email}"
+                        body = f"Приветствую, {u_name}. На связи Архитектор.\n\nЯ заметил, что ты не заходил в терминал МУКТИ уже 3 дня. Всё в порядке?\n\nЗнаешь, на старте это абсолютно нормальная реакция. Когда мы начинаем переписывать нейронные связи, старая программа («Гость») чувствует угрозу и начинает саботировать процесс. Она шепчет: «Давай потом», «У тебя нет времени», «Это всё ерунда».\n\nНе поддавайся. Тебе не обязательно писать длинные тексты. Просто зайди в систему прямо сейчас и напиши Наставнику одну фразу: как прошел твой сегодняшний день.\n\nТвой прогресс сохранен. Жду тебя внутри: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
                     
                     if rem_type > 0:
                         res = send_email(u_email, subj, body)
                         if res == "OK":
                             reminders_sent.append(rem_type)
                             prof["reminders_sent"] = reminders_sent
-                            db.update_field(r_num, 6, json.dumps(prof)) 
+                            db.update_field(r_num, db.COL_PROFILE, json.dumps(prof)) 
                             sent_count += 1
                             time.sleep(1) 
                             
@@ -450,9 +484,14 @@ elif st.session_state.reading_message:
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
             st.session_state.user_profile["last_active"] = str(date.today())
-            db.update_profile(st.session_state.row_num, "msg_day", next_day)
-            db.update_profile(st.session_state.row_num, "last_msg_date", get_mukti_date())
-            db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
+            
+            # Пакетное обновление (Один вызов API вместо трёх)
+            db.update_profile_batch(st.session_state.row_num, {
+                "msg_day": next_day,
+                "last_msg_date": get_mukti_date(),
+                "last_active": str(date.today())
+            })
+            
             st.session_state.reading_message = False
             st.rerun()
     else:
@@ -473,8 +512,8 @@ else:
         msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
         if last_date != today_str:
             msgs_today = 0
-            db.update_field(st.session_state.row_num, 5, today_str) 
-            db.update_field(st.session_state.row_num, 4, msgs_today) 
+            db.update_field(st.session_state.row_num, db.COL_LAST_DATE, today_str) 
+            db.update_field(st.session_state.row_num, db.COL_MSGS_TODAY, msgs_today) 
 
     msg_day = int(st.session_state.user_profile.get("msg_day", 0))
     is_day_one = (msg_day <= 1)
@@ -597,7 +636,7 @@ else:
             with st.chat_message("user", avatar=USER_AVATAR): st.markdown(prompt)
 
             msgs_today += 1
-            db.update_field(st.session_state.row_num, 4, msgs_today)
+            db.update_field(st.session_state.row_num, db.COL_MSGS_TODAY, msgs_today)
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
 
