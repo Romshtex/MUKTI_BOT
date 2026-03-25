@@ -514,7 +514,7 @@ else:
         
         default_text = ""
         if not st.session_state.is_vip:
-            default_text = "Привет, Архитектор!\n\nПрошу открыть мне Полный доступ (VIP) к системе МУКТИ. Готов к работе."
+            default_text = "Привет, Архитектор!\n\nЯ прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\nПрошу открыть мне Полный доступ (VIP)."
             
         with st.form("care_form"):
             user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
