@@ -80,6 +80,20 @@ st.markdown("""
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
+# --- ПРОВЕРКА СОГЛАСИЯ НА COOKIES ---
+if cookie_manager.get(cookie="cookies_accepted") != "true":
+    st.markdown("""
+    <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #00E676; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
+        <span style='color: #FAFAFA; font-size: 14px;'>
+            🍪 Система МУКТИ использует файлы cookie, чтобы сохранять твою сессию и обеспечивать безопасность. 
+            Продолжая использовать терминал, ты даешь согласие на их обработку.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("✅ ПРИНЯТЬ И СКРЫТЬ", key="accept_cookies_btn", use_container_width=True):
+        cookie_manager.set("cookies_accepted", "true", expires_at=datetime.now() + timedelta(days=365))
+        st.rerun()
+
 # --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
 if "unsubscribe" in st.query_params:
     unsub_email = st.query_params["unsubscribe"]
@@ -90,7 +104,7 @@ if "unsubscribe" in st.query_params:
         except:
             profile = {}
         profile["unsubscribed"] = True
-        db.update_field(r_num, 6, json.dumps(profile)) # ИСПРАВЛЕНО НА 6 (Колонка profile)
+        db.update_field(r_num, 6, json.dumps(profile)) 
         st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
         st.query_params.clear()
 
@@ -324,10 +338,10 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                 row, r_num = db.load_user(target_email)
                 if row:
                     try:
-                        db.update_field(r_num, 8, "TRUE") # ИСПРАВЛЕНО НА 8 (Колонка H)
+                        db.update_field(r_num, 8, "TRUE") 
                         prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                         prof["is_vip"] = True
-                        db.update_field(r_num, 6, json.dumps(prof)) # ИСПРАВЛЕНО НА 6 (Колонка F)
+                        db.update_field(r_num, 6, json.dumps(prof)) 
                         st.success(f"Доступ VIP активирован для {target_email}!")
                     except Exception as e:
                         st.error(f"Ошибка БД: {e}")
@@ -382,7 +396,7 @@ elif st.session_state.user_email == "mukti.system@yandex.com":
                         if res == "OK":
                             reminders_sent.append(rem_type)
                             prof["reminders_sent"] = reminders_sent
-                            db.update_field(r_num, 6, json.dumps(prof)) # ИСПРАВЛЕНО НА 6 (Колонка F)
+                            db.update_field(r_num, 6, json.dumps(prof)) 
                             sent_count += 1
                             time.sleep(1) 
                             
@@ -544,6 +558,25 @@ else:
                 st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>🔋 Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
             else:
                 st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>⚠️ Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
+                
+                # --- КНОПКА ЗАПРОСА VIP ---
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("✉️ Написать в Отдел заботы (Запросить VIP)"):
+                    with st.form("vip_request_form"):
+                        st.markdown("Запроси полный доступ, чтобы снять лимиты сообщений и продолжить работу прямо сейчас.")
+                        vip_msg = st.text_area("Комментарий для Архитектора (по желанию):", placeholder="Привет! Хочу получить VIP-доступ...")
+                        submit_vip = st.form_submit_button("🚀 Отправить запрос")
+                        
+                        if submit_vip:
+                            user_email = st.session_state.user_email
+                            subj = f"🔥 НОВЫЙ ЗАПРОС НА VIP от {user_email}"
+                            body = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{vip_msg}"
+                            
+                            res = send_email(st.secrets["YANDEX_EMAIL"], subj, body)
+                            if res == "OK":
+                                st.success("Сигнал успешно отправлен Архитектору! Ожидай активации.")
+                            else:
+                                st.error(f"Сбой связи с сервером. Ошибка: {res}")
             
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -553,7 +586,6 @@ else:
             db.update_field(st.session_state.row_num, 4, msgs_today)
             st.session_state.user_profile["last_active"] = str(date.today())
             db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
-
 
             if st.session_state.calibration_step > 0:
                 step = st.session_state.calibration_step
@@ -608,7 +640,6 @@ else:
                     st.session_state.reading_message = True
                     time.sleep(1.5) 
                     st.rerun()
-            
             else:
                 easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                 if any(word in prompt.lower() for word in easter_eggs):
