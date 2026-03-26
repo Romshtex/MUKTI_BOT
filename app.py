@@ -28,6 +28,8 @@ ADMIN_EMAILS = st.secrets.get("ADMIN_EMAILS", ["mukti.system@yandex.com"])
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
+st.set_page_config(page_title="MUKTI", page_icon="logo.png", layout="centered")
+
 try:
     from book import BOOK_SUMMARY
 except ImportError:
