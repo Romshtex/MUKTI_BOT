@@ -89,9 +89,6 @@ st.markdown("""
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES И КРИПТОГРАФИИ ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
-def hash_password(password):
-    return hashlib.sha256((password + SECRET_KEY).encode()).hexdigest()
-
 def generate_temp_password(length=8):
     return secrets.token_urlsafe(length)[:length]
 
@@ -275,7 +272,6 @@ if not st.session_state.logged_in:
                         else: st.error("Ошибка доступа. Неверный Email или Пароль.")
                     else: st.error("Пользователь не найден.")
                 else: st.warning("Введи данные.")
-
     with tab2:
         with st.form("reg_form"):
             new_email = st.text_input("Email (Твой ID в системе)").strip().lower()
@@ -285,10 +281,11 @@ if not st.session_state.logged_in:
             if st.form_submit_button("СОЗДАТЬ ПРОФИЛЬ"):
                 if not new_email or "@" not in new_email:
                     st.error("Введи корректный Email.")
-                elif len(new_pwd) < 4:
-                    st.error("Пароль должен быть не короче 4 символов.")
+                elif len(new_pwd) < 8: # Усиление безопасности: минимум 8 символов
+                    st.error("Пароль должен быть не короче 8 символов.")
                 elif new_user:
-                    res = db.register_user(new_email, new_user, hash_password(new_pwd))
+                    # Убрали hash_password(). База данных сама захеширует чистый пароль.
+                    res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
                         cookie_manager.set("mukti_user", new_email, expires_at=datetime.now() + timedelta(days=30))
                         load_user_to_session(new_email)
@@ -715,7 +712,8 @@ else:
                     with st.chat_message("assistant", avatar=BOT_AVATAR):
                         with st.spinner("Оцифровка мыслей..."):
                             sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, BOOK_SUMMARY)
-                            full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
+                            history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages[-5:]])
+                            full_p = f"{sys_prompt}\n\nИстория последних сообщений:\n{history_text}\n\nUser: {prompt}"
                             try:
                                 response = ai_client.models.generate_content(
                                     model='gemini-2.5-flash',
