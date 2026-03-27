@@ -323,7 +323,8 @@ elif st.session_state.user_email in ADMIN_EMAILS:
     st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    all_users = db.get_all_users()
+    with st.spinner("Загрузка данных Матрицы..."):
+        all_users = db.get_all_users()
     
     total_users = 0
     vip_users = 0
@@ -340,10 +341,8 @@ elif st.session_state.user_email in ADMIN_EMAILS:
         try: prof = json.loads(p_json) if p_json else {}
         except: prof = {}
         
+        # --- ИСПРАВЛЕНИЕ: Берем VIP сразу из профиля, БЕЗ дополнительных запросов к БД ---
         is_vip = prof.get("is_vip", False)
-        row_full, _ = db.load_user(u_email)
-        if row_full and len(row_full) > 7 and row_full[7] == "TRUE":
-            is_vip = True
             
         if is_vip: vip_users += 1
             
@@ -374,25 +373,23 @@ elif st.session_state.user_email in ADMIN_EMAILS:
     
     st.markdown("---")
     
-    col_vip, col_mail = st.columns(2)
-    
-    with col_vip:
-        st.markdown("### 👑 Выдача VIP-доступа")
-        with st.form("vip_form"):
-            target_email = st.text_input("Введи Email для активации VIP").strip().lower()
-            if st.form_submit_button("АКТИВИРОВАТЬ VIP"):
-                row, r_num = db.load_user(target_email)
-                if row:
-                    try:
-                        db.update_field(r_num, 8, "TRUE") 
-                        prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
-                        prof["is_vip"] = True
-                        db.update_field(r_num, 6, json.dumps(prof)) 
-                        st.success(f"Доступ VIP активирован для {target_email}!")
-                    except Exception as e:
-                        st.error(f"Ошибка БД: {e}")
-                else:
-                    st.error("Аватар с таким Email не найден.")
+    # Мы убрали col_mail, так как рассылку из UI делать нельзя (она теперь работает в фоне)
+    st.markdown("### 👑 Выдача VIP-доступа")
+    with st.form("vip_form"):
+        target_email = st.text_input("Введи Email для активации VIP").strip().lower()
+        if st.form_submit_button("АКТИВИРОВАТЬ VIP"):
+            row, r_num = db.load_user(target_email)
+            if row:
+                try:
+                    db.update_field(r_num, 8, "TRUE") 
+                    prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
+                    prof["is_vip"] = True
+                    db.update_field(r_num, 6, json.dumps(prof)) 
+                    st.success(f"Доступ VIP активирован для {target_email}!")
+                except Exception as e:
+                    st.error(f"Ошибка БД: {e}")
+            else:
+                st.error("Аватар с таким Email не найден.")
 
     with col_mail:
         st.markdown("### 🚀 Протокол рассылки")
