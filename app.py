@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from datetime import datetime, timedelta, date
 import time
 import json
@@ -29,7 +29,7 @@ YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
 SECRET_KEY = st.secrets.get("SECRET_KEY", "mukti_super_secret_matrix_key_2026")
 ADMIN_EMAILS = st.secrets.get("ADMIN_EMAILS", ["mukti.system@yandex.com"])
 
-genai.configure(api_key=GOOGLE_API_KEY)
+ai_client = genai.Client(api_key=GOOGLE_API_KEY)
 
 try:
     from book import BOOK_SUMMARY
@@ -716,15 +716,15 @@ else:
                         with st.spinner("Оцифровка мыслей..."):
                             sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, BOOK_SUMMARY)
                             full_p = f"{sys_prompt}\nИстория:\n{st.session_state.messages[-5:]}\nUser: {prompt}"
-                            txt = None
-                            for i in range(3):
-                                if model:
-                                    try:
-                                        txt = model.generate_content(full_p).text
-                                        break
-                                    except: time.sleep(1)
-                            if txt:
+                            try:
+                                response = ai_client.models.generate_content(
+                                    model='gemini-2.5-flash',
+                                    contents=full_p
+                                )
+                                txt = response.text
                                 st.markdown(txt)
                                 st.session_state.messages.append({"role": "assistant", "content": txt})
                                 db.save_history(st.session_state.row_num, st.session_state.messages)
-                            else: st.error("Сбой связи. Попробуй еще раз.")
+                            except Exception as e:
+                                st.error("Сбой связи с Ядром. Попробуй еще раз.")
+                                print(f"GenAI Error: {e}")
