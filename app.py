@@ -244,9 +244,16 @@ if not st.session_state.logged_in:
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
+    # --- ВЫВОД ЛОГОТИПА ПО ЦЕНТРУ ---
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        try:
+            st.image("logo.png", use_container_width=True)
+        except:
+            pass # Если файла logo.png временно нет, код не сломается
+
     st.markdown("<h1 style='text-align: center; color: #00E676;'>МУКТИ</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы алкогольной зависимости</p>", unsafe_allow_html=True)
-    
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
     with tab1:
