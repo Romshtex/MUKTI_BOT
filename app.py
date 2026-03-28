@@ -721,5 +721,5 @@ else:
                                 st.session_state.messages.append({"role": "assistant", "content": txt})
                                 db.save_history(st.session_state.row_num, st.session_state.messages)
                             except Exception as e:
-                                st.error("Сбой связи с Ядром. Попробуй еще раз.")
+                                st.error(f"СИСТЕМНАЯ ОШИБКА ИИ: {e}")
                                 print(f"GenAI Error: {e}")
