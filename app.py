@@ -32,7 +32,7 @@ ADMIN_EMAILS = st.secrets.get("ADMIN_EMAILS", ["mukti.system@yandex.com"])
 ai_client = genai.Client(api_key=GOOGLE_API_KEY)
 
 try:
-    from book import BOOK_SUMMARY
+    from book import get_book_summary, get_full_book
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
