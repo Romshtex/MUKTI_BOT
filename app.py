@@ -708,7 +708,7 @@ else:
                 else:
                     with st.chat_message("assistant", avatar=BOT_AVATAR):
                         with st.spinner("Оцифровка мыслей..."):
-                            sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, book.get_book_summary())
+                            sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, get_book_summary())
                             history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages[-5:]])
                             full_p = f"{sys_prompt}\n\nИстория последних сообщений:\n{history_text}\n\nUser: {prompt}"
                             try:
