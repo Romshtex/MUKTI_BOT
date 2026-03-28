@@ -371,5 +371,6 @@ def get_messages():
 }
 
 def get_message_for_day(day_number):
-    """Возвращает текст послания по номеру дня. Если дня нет, возвращает None."""
-    return MESSAGES.get(day_number, None)
+    # Теперь мы сначала вызываем функцию, чтобы достать словарь из кэша
+    messages_dict = get_messages() 
+    return messages_dict.get(day_number, None)
