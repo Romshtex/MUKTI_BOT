@@ -1,3 +1,4 @@
+import streamlit as st
 @st.cache_data
 def get_full_book():
     return """© [Роман Выборнов], 2026
