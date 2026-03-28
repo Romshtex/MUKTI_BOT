@@ -3,3 +3,4 @@ google-genai
 gspread
 oauth2client
 extra-streamlit-components
+requests
