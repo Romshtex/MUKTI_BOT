@@ -16,17 +16,6 @@ import requests
 # --- ИКОНКА ДЛЯ ВКЛАДКИ БРАУЗЕРА (FAVICON) ---
 st.set_page_config(page_title="МУКТИ | Система выхода", page_icon="logo.png")
 
-@st.cache_data(ttl=600)
-def debug_ipinfo():
-    try:
-        r = requests.get("https://ipinfo.io/json", timeout=10)
-        return r.json()
-    except Exception as e:
-        return {"error": str(e)}
-
-with st.expander("DEBUG: IP / Location (Streamlit Cloud)", expanded=False):
-    st.json(debug_ipinfo())
-
 # ИМПОРТ МОДУЛЕЙ
 import settings
 import database as db
