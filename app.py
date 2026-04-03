@@ -90,6 +90,9 @@ st.markdown("""
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES И КРИПТОГРАФИИ ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
 def generate_temp_password(length=8):
     return secrets.token_urlsafe(length)[:length]
 
@@ -173,6 +176,8 @@ def send_email(to_email, subject, body):
         return "OK"
     except Exception as e: 
         return f"ОТКАЗ ЯНДЕКСА: {str(e)}"
+
+
 
 def get_mukti_date():
     now = datetime.now()
