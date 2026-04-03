@@ -169,15 +169,14 @@ def send_email(to_email, subject, body):
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
-        server = smtplib.SMTP_SSL('smtp.yandex.ru', 465)
+        # ДОБАВЛЕН ТАЙМАУТ 10 СЕКУНД, чтобы интерфейс не висел вечно
+        server = smtplib.SMTP_SSL('smtp.yandex.ru', 465, timeout=10)
         server.login(YANDEX_EMAIL, YANDEX_PASSWORD)
         server.send_message(msg)
         server.quit()
         return "OK"
     except Exception as e: 
-        return f"ОТКАЗ ЯНДЕКСА: {str(e)}"
-
-
+        return f"ОТКАЗ ЯНДЕКСА (Возможно, закрыт порт): {str(e)}"
 
 def get_mukti_date():
     now = datetime.now()
