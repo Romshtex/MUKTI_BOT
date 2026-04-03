@@ -563,16 +563,20 @@ else:
             
         with st.form("care_form"):
             user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
-            if st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ"):
+            submit_care = st.form_submit_button("🚀 ОТПРАВИТЬ АРХИТЕКТОРУ")
+            
+            if submit_care:
                 if user_msg.strip():
-                    subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
-                    body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
-                    res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
-                    
-                    msg_upper = user_msg.upper()
-                    if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
-                        subj_user = "МУКТИ: Активация Полного доступа (VIP)"
-                        body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
+                    # Добавляем индикатор загрузки, чтобы кнопка не казалась "мертвой"
+                    with st.spinner("Установка защищенного канала связи и передача данных..."):
+                        subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
+                        body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
+                        res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
+                        
+                        msg_upper = user_msg.upper()
+                        if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
+                            subj_user = "МУКТИ: Активация Полного доступа (VIP)"
+                            body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
 
 В данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.
 
@@ -596,13 +600,15 @@ else:
 Готов выйти из Матрицы? Жду подтверждения.
 
 С уважением Роман, Архитектор проекта МУКТИ"""
-                        send_email(st.session_state.user_email, subj_user, body_user)
+                            send_email(st.session_state.user_email, subj_user, body_user)
 
-                    if res_admin == "OK": 
-                        st.success("Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
-                    else: 
-                        st.error(f"Ошибка: {res_admin}")
-                else: st.warning("Напиши текст сообщения.")
+                        if res_admin == "OK": 
+                            st.success("✅ Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
+                            st.balloons()
+                        else: 
+                            st.error(f"Сбой связи: {res_admin}")
+                else: 
+                    st.warning("Напиши текст сообщения.")
 
     # ВЬЮ: ЧАТ
     else:
