@@ -374,7 +374,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
     
     st.markdown("---")
     
-    # Мы убрали col_mail, так как рассылку из UI делать нельзя (она теперь работает в фоне)
+# Мы убрали col_mail, так как рассылку из UI делать нельзя (она теперь работает в фоне)
     st.markdown("### 👑 Выдача VIP-доступа")
     with st.form("vip_form"):
         target_email = st.text_input("Введи Email для активации VIP").strip().lower()
@@ -392,62 +392,61 @@ elif st.session_state.user_email in ADMIN_EMAILS:
             else:
                 st.error("Аватар с таким Email не найден.")
 
-    with col_mail:
-        st.markdown("### 🚀 Протокол рассылки")
-        st.markdown("Автоматическая проверка базы и отправка писем (3, 7, 14 дней).")
-        if st.button("ЗАПУСТИТЬ РАССЫЛКУ", type="primary", use_container_width=True):
-            with st.spinner("Сбор данных и отправка писем..."):
-                sent_count = 0
-                for u in all_users:
-                    r_num, u_email, u_name, p_json = u
-                    if u_email in ADMIN_EMAILS or u_email == YANDEX_EMAIL: continue
+    st.markdown("### 🚀 Протокол рассылки")
+    st.markdown("Автоматическая проверка базы и отправка писем (3, 7, 14 дней).")
+    if st.button("ЗАПУСТИТЬ РАССЫЛКУ", type="primary", use_container_width=True):
+        with st.spinner("Сбор данных и отправка писем..."):
+            sent_count = 0
+            for u in all_users:
+                r_num, u_email, u_name, p_json = u
+                if u_email in ADMIN_EMAILS or u_email == YANDEX_EMAIL: continue
+                
+                try: prof = json.loads(p_json) if p_json else {}
+                except: prof = {}
+                
+                if prof.get("unsubscribed") == True: continue
                     
-                    try: prof = json.loads(p_json) if p_json else {}
-                    except: prof = {}
-                    
-                    if prof.get("unsubscribed") == True: continue
+                last_active_str = prof.get("last_active") or prof.get("last_msg_date")
+                if not last_active_str: continue
+                
+                try: last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
+                except: continue
+                
+                days_inactive = (today_date - last_active_date).days
+                reminders_sent = prof.get("reminders_sent", [])
+                
+                subj = ""
+                body = ""
+                rem_type = 0
+                
+                unsub_token = get_unsubscribe_token(u_email)
+                unsub_url = f"https://mukti-app.streamlit.app/?unsubscribe={u_email}&token={unsub_token}"
+                
+                if days_inactive >= 14 and 14 not in reminders_sent:
+                    rem_type = 14
+                    subj = "Перевод профиля в спящий режим"
+                    body = f"Привет, {u_name}. Две недели без связи.\n\nЯ понимаю, что не каждый готов выйти из Матрицы с первой попытки. Иногда нужно время, чтобы устать от старого сценария настолько, чтобы захотеть реальных перемен. И это нормально - это твой путь.\n\nСегодня я перевожу твой профиль в спящий режим. Я больше не буду присылать тебе системные уведомления.\n\nНо помни одно: твое место в терминале навсегда закреплено за тобой. Если через месяц или через год ты проснешься с мыслью, что пора окончательно удалить вредоносный код из своей жизни - просто перейди по ссылке, введи свой пароль, и Наставник продолжит работу с того же места.\n\nДо связи. Архитектор.\nhttps://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
+                
+                elif days_inactive >= 7 and 7 not in reminders_sent and 14 not in reminders_sent:
+                    rem_type = 7
+                    subj = "Кто сейчас управляет твоим временем?"
+                    body = f"Привет, {u_name}. Прошла ровно неделя тишины.\n\nЕсли ты сейчас справляешься сам и Гость молчит - я искренне рад. Но чаще всего недельная пауза означает другое: старые привычки пытаются вернуть себе контроль.\n\nЕсли произошел срыв - не вини себя. Чувство вины - это любимое топливо зависимости. Система МУКТИ создана не для того, чтобы тебя ругать, а для того, чтобы хладнокровно разобрать ошибку в коде и сделать тебя сильнее.\n\nНе нужно начинать всё сначала. Просто вернись в чат и честно скажи Наставнику, что произошло. Мы просто обнулим этот сбой и пойдем дальше.\n\nТерминал открыт: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
+                
+                elif days_inactive >= 3 and 3 not in reminders_sent and 7 not in reminders_sent and 14 not in reminders_sent:
+                    rem_type = 3
+                    subj = "Терминал МУКТИ ожидает отклика..."
+                    body = f"Приветствую, {u_name}. На связи Архитектор.\n\nЯ заметил, что ты не заходил в терминал МУКТИ уже 3 дня. Всё в порядке?\n\nЗнаешь, на старте это абсолютно нормальная реакция. Когда мы начинаем переписывать нейронные связи, старая программа («Гость») чувствует угрозу и начинает саботировать процесс. Она шепчет: «Давай потом», «У тебя нет времени», «Это всё ерунда».\n\nНе поддавайся. Тебе не обязательно писать длинные тексты. Просто зайди в систему прямо сейчас и напиши Наставнику одну фразу: как прошел твой сегодняшний день.\n\nТвой прогресс сохранен. Жду тебя внутри: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
+                
+                if rem_type > 0:
+                    res = send_email(u_email, subj, body)
+                    if res == "OK":
+                        reminders_sent.append(rem_type)
+                        prof["reminders_sent"] = reminders_sent
+                        db.update_field(r_num, 6, json.dumps(prof)) 
+                        sent_count += 1
+                        time.sleep(1) 
                         
-                    last_active_str = prof.get("last_active") or prof.get("last_msg_date")
-                    if not last_active_str: continue
-                    
-                    try: last_active_date = datetime.strptime(last_active_str, "%Y-%m-%d").date()
-                    except: continue
-                    
-                    days_inactive = (today_date - last_active_date).days
-                    reminders_sent = prof.get("reminders_sent", [])
-                    
-                    subj = ""
-                    body = ""
-                    rem_type = 0
-                    
-                    unsub_token = get_unsubscribe_token(u_email)
-                    unsub_url = f"https://mukti-app.streamlit.app/?unsubscribe={u_email}&token={unsub_token}"
-                    
-                    if days_inactive >= 14 and 14 not in reminders_sent:
-                        rem_type = 14
-                        subj = "Перевод профиля в спящий режим"
-                        body = f"Привет, {u_name}. Две недели без связи.\n\nЯ понимаю, что не каждый готов выйти из Матрицы с первой попытки. Иногда нужно время, чтобы устать от старого сценария настолько, чтобы захотеть реальных перемен. И это нормально - это твой путь.\n\nСегодня я перевожу твой профиль в спящий режим. Я больше не буду присылать тебе системные уведомления.\n\nНо помни одно: твое место в терминале навсегда закреплено за тобой. Если через месяц или через год ты проснешься с мыслью, что пора окончательно удалить вредоносный код из своей жизни - просто перейди по ссылке, введи свой пароль, и Наставник продолжит работу с того же места.\n\nДо связи. Архитектор.\nhttps://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
-                    
-                    elif days_inactive >= 7 and 7 not in reminders_sent and 14 not in reminders_sent:
-                        rem_type = 7
-                        subj = "Кто сейчас управляет твоим временем?"
-                        body = f"Привет, {u_name}. Прошла ровно неделя тишины.\n\nЕсли ты сейчас справляешься сам и Гость молчит - я искренне рад. Но чаще всего недельная пауза означает другое: старые привычки пытаются вернуть себе контроль.\n\nЕсли произошел срыв - не вини себя. Чувство вины - это любимое топливо зависимости. Система МУКТИ создана не для того, чтобы тебя ругать, а для того, чтобы хладнокровно разобрать ошибку в коде и сделать тебя сильнее.\n\nНе нужно начинать всё сначала. Просто вернись в чат и честно скажи Наставнику, что произошло. Мы просто обнулим этот сбой и пойдем дальше.\n\nТерминал открыт: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
-                    
-                    elif days_inactive >= 3 and 3 not in reminders_sent and 7 not in reminders_sent and 14 not in reminders_sent:
-                        rem_type = 3
-                        subj = "Терминал МУКТИ ожидает отклика..."
-                        body = f"Приветствую, {u_name}. На связи Архитектор.\n\nЯ заметил, что ты не заходил в терминал МУКТИ уже 3 дня. Всё в порядке?\n\nЗнаешь, на старте это абсолютно нормальная реакция. Когда мы начинаем переписывать нейронные связи, старая программа («Гость») чувствует угрозу и начинает саботировать процесс. Она шепчет: «Давай потом», «У тебя нет времени», «Это всё ерунда».\n\nНе поддавайся. Тебе не обязательно писать длинные тексты. Просто зайди в систему прямо сейчас и напиши Наставнику одну фразу: как прошел твой сегодняшний день.\n\nТвой прогресс сохранен. Жду тебя внутри: https://mukti-app.streamlit.app/\n\n---\nОтключить напоминания от Архитектора: {unsub_url}"
-                    
-                    if rem_type > 0:
-                        res = send_email(u_email, subj, body)
-                        if res == "OK":
-                            reminders_sent.append(rem_type)
-                            prof["reminders_sent"] = reminders_sent
-                            db.update_field(r_num, 6, json.dumps(prof)) 
-                            sent_count += 1
-                            time.sleep(1) 
-                            
-                st.success(f"✅ Рассылка завершена. Писем отправлено: {sent_count}")
+            st.success(f"✅ Рассылка завершена. Писем отправлено: {sent_count}")
 
     st.markdown("---")
     st.markdown("### 👥 База Аватаров (CRM)")
@@ -463,7 +462,6 @@ elif st.session_state.user_email in ADMIN_EMAILS:
         st.session_state.logged_in = False
         time.sleep(0.5)
         st.rerun()
-
 # ==========================================
 # ЕЖЕДНЕВНОЕ ПОСЛАНИЕ (ДЛЯ АВАТАРОВ)
 # ==========================================
