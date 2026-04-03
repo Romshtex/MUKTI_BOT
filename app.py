@@ -617,22 +617,40 @@ else:
                 
                 # --- КНОПКА ЗАПРОСА VIP ---
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("✉️ Написать в Отдел заботы (Запросить VIP)"):
-                    with st.form("vip_request_form"):
-                        st.markdown("Запроси полный доступ, чтобы снять лимиты сообщений и продолжить работу прямо сейчас.")
-                        vip_msg = st.text_area("Комментарий для Архитектора (по желанию):", placeholder="Привет! Хочу получить VIP-доступ...")
+                with st.expander("Написать в Отдел заботы (Запросить VIP)"):
+                    st.write("Запроси полный доступ, чтобы снять лимиты сообщений и продолжить работу прямо сейчас.")
+                
+                    # Задаем шаблон для чата
+                    vip_template = "Привет, Архитектор!\n\nЯ прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\nПрошу открыть мне Полный доступ (VIP)."
+                
+                    # Название формы должно быть уникальным, добавил суффикс _chat
+                    with st.form("vip_request_form_chat"):
+                        # Меняем placeholder на value
+                        user_comment = st.text_area(
+                            "Комментарий для Архитектора (по желанию):", 
+                            value=vip_template, 
+                            height=150
+                        )
+                    
+                        # ВАЖНО: Кнопка должна быть с отступом ВНУТРИ формы
                         submit_vip = st.form_submit_button("🚀 Отправить запрос")
                         
+                        # Логика отправки (тоже внутри формы)
                         if submit_vip:
-                            user_email = st.session_state.user_email
-                            subj = f"🔥 НОВЫЙ ЗАПРОС НА VIP от {user_email}"
-                            body = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{vip_msg}"
-                            
-                            res = send_email(st.secrets["YANDEX_EMAIL"], subj, body)
-                            if res == "OK":
-                                st.success("Сигнал успешно отправлен Архитектору! Ожидай активации.")
+                            if user_comment.strip():
+                                user_email = st.session_state.user_email
+                                subj = f"🔥 НОВЫЙ ЗАПРОС НА VIP от {user_email}"
+                                
+                                # Исправлена переменная: теперь отправляется user_comment
+                                body = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{user_comment}"
+                                
+                                res = send_email(st.secrets["YANDEX_EMAIL"], subj, body)
+                                if res == "OK":
+                                    st.success("Сигнал успешно отправлен Архитектору! Ожидай активации.")
+                                else:
+                                    st.error(f"Сбой связи с сервером. Ошибка: {res}")
                             else:
-                                st.error(f"Сбой связи с сервером. Ошибка: {res}")
+                                st.warning("Текст сообщения не может быть пустым.")
             
         elif prompt := st.chat_input("Напиши мне..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
