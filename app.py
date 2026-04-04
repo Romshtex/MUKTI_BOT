@@ -631,31 +631,49 @@ else:
                 time.sleep(0.5)
                 st.rerun()
 
-    # ВЬЮ: ОТДЕЛ ЗАБОТЫ
+# ВЬЮ: ОТДЕЛ ЗАБОТЫ
     if st.session_state.current_view == "care":
         st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
-        st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
         
-        default_text = ""
-        if not st.session_state.is_vip:
-            default_text = "Привет, Архитектор!\n\nЯ прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\nПрошу открыть мне Полный доступ (VIP)."
+        is_verified = st.session_state.user_profile.get("email_verified", False)
+        
+        # Если почта НЕ подтверждена - блокируем форму и даем кнопку повторной отправки
+        if not is_verified:
+            st.warning("⚠️ Для связи с Архитектором и запроса Полного доступа (VIP) необходимо подтвердить Email.")
+            if st.button("✉️ Отправить письмо подтверждения еще раз"):
+                with st.spinner("Формируем канал связи..."):
+                    v_token = get_verify_token(st.session_state.user_email)
+                    v_url = f"https://mukti.pro/?verify={st.session_state.user_email}&token={v_token}"
+                    subj = "МУКТИ: Повторная отправка ссылки"
+                    body = f"Приветствую, {st.session_state.username}.\n\nСсылка для подтверждения твоего терминала:\n{v_url}\n\nАрхитектор."
+                    res_m = send_email(st.session_state.user_email, subj, body)
+                    if res_m == "OK": st.success("Письмо отправлено! Проверь почту (и папку Спам).")
+                    else: st.error("Ошибка отправки почты.")
+        
+        # Если почта подтверждена - показываем стандартную форму
+        else:
+            st.markdown("Здесь ты можешь задать вопрос Архитектору, сообщить об ошибке или запросить **Полный доступ (VIP)**.")
             
-        with st.form("care_form"):
-            user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
-            submit_care = st.form_submit_button("🚀 ОТПРАВИТЬ АРХИТЕКТОРУ")
-            
-            if submit_care:
-                if user_msg.strip():
-                    # Добавляем индикатор загрузки, чтобы кнопка не казалась "мертвой"
-                    with st.spinner("Установка защищенного канала связи и передача данных..."):
-                        subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
-                        body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
-                        res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
-                        
-                        msg_upper = user_msg.upper()
-                        if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
-                            subj_user = "МУКТИ: Активация Полного доступа (VIP)"
-                            body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
+            default_text = ""
+            if not st.session_state.is_vip:
+                default_text = "Привет, Архитектор!\n\nЯ прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\nПрошу открыть мне Полный доступ (VIP)."
+                
+            with st.form("care_form"):
+                user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
+                submit_care = st.form_submit_button("🚀 ОТПРАВИТЬ АРХИТЕКТОРУ")
+                
+                if submit_care:
+                    if user_msg.strip():
+                        # Добавляем индикатор загрузки, чтобы кнопка не казалась "мертвой"
+                        with st.spinner("Установка защищенного канала связи и передача данных..."):
+                            subj_admin = f"МУКТИ: Запрос от {st.session_state.username}"
+                            body_admin = f"Аватар: {st.session_state.username}\nEmail: {st.session_state.user_email}\nVIP: {st.session_state.is_vip}\nДень: {msg_day}\n\nСообщение:\n{user_msg}"
+                            res_admin = send_email(YANDEX_EMAIL, subj_admin, body_admin)
+                            
+                            msg_upper = user_msg.upper()
+                            if "VIP" in msg_upper or "ПОЛНЫЙ ДОСТУП" in msg_upper:
+                                subj_user = "МУКТИ: Активация Полного доступа (VIP)"
+                                body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
 
 В данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.
 
@@ -679,14 +697,14 @@ else:
 Готов выйти из Матрицы? Жду подтверждения.
 
 С уважением Роман, Архитектор проекта МУКТИ"""
-                            send_email(st.session_state.user_email, subj_user, body_user)
+                                send_email(st.session_state.user_email, subj_user, body_user)
 
-                        if res_admin == "OK": 
-                            st.success("✅ Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
-                        else: 
-                            st.error(f"Сбой связи: {res_admin}")
-                else: 
-                    st.warning("Напиши текст сообщения.")
+                            if res_admin == "OK": 
+                                st.success("✅ Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
+                            else: 
+                                st.error(f"Сбой связи: {res_admin}")
+                    else: 
+                        st.warning("Напиши текст сообщения.")
 
 # ВЬЮ: ЧАТ
     else:
