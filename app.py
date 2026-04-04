@@ -208,9 +208,25 @@ def load_user_to_session(email):
             st.session_state.reading_message = False
             return True
 
-        st.session_state.user_profile["last_active"] = str(date.today())
-        db.update_profile(st.session_state.row_num, "last_active", str(date.today()))
+        # --- СЧЕТЧИК ПОСЕЩЕНИЙ VIP ---
+        today_str = str(date.today())
+        last_active_str = st.session_state.user_profile.get("last_active", "")
         
+        # Если юзер VIP и зашел в НОВЫЙ день (а не просто обновил страницу)
+        if st.session_state.is_vip and last_active_str != today_str:
+            if "vip_days_remaining" in st.session_state.user_profile:
+                st.session_state.user_profile["vip_days_remaining"] -= 1
+                
+                # Если лимит посещений исчерпан -> отключаем VIP
+                if st.session_state.user_profile["vip_days_remaining"] <= 0:
+                    st.session_state.is_vip = False
+                    st.session_state.user_profile["is_vip"] = False
+                    db.update_field(r_num, 8, "FALSE") # Снимаем флаг в БД
+        
+        # Обновляем дату последнего захода и сохраняем весь профиль со счетчиком
+        st.session_state.user_profile["last_active"] = today_str
+        db.update_field(r_num, 6, json.dumps(st.session_state.user_profile))
+
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
             welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
@@ -390,8 +406,39 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                     db.update_field(r_num, 8, "TRUE") 
                     prof = json.loads(row[5]) if len(row)>5 and row[5] else {}
                     prof["is_vip"] = True
+                    
+                    # Устанавливаем счетчик ровно на 61 визит (активный день)
+                    prof["vip_days_remaining"] = 61
+                    
                     db.update_field(r_num, 6, json.dumps(prof)) 
-                    st.success(f"Доступ VIP активирован для {target_email}!")
+                    
+                    # --- ОТПРАВКА ПИСЬМА АВАТАРУ ---
+                    user_name = row[1]
+                    subj_vip = "МУКТИ: Полный доступ (VIP) успешно активирован 🟢"
+                    body_vip = f"""Приветствую, {user_name}! На связи Архитектор.
+
+Твой перевод подтвержден. Я вручную снял базовые ограничения с твоего профиля. Полный доступ (VIP) успешно активирован.
+
+Что изменилось в твоем терминале прямо сейчас:
+🟢 Резерв энергии увеличен: теперь тебе доступно до 20 сообщений в день. Этого хватит для самых глубоких разборов с ИИ-Наставником.
+🟢 Непрерывность: ты можешь проходить программу каждый день без искусственных пауз. Впереди 61 активный день — таймер тикает только тогда, когда ты заходишь в систему.
+🟢 Твой статус в Панели Управления изменился на «🌟 VIP».
+
+Матрица обновлена и готова к работе. Твой Наставник уже ждет тебя в чате. Не теряй времени — заходи и продолжай перепрошивку.
+
+Терминал: https://mukti.pro
+
+До связи. 
+Архитектор проекта МУКТИ."""
+                    
+                    # Посылаем сигнал через открытый порт 587
+                    res_mail = send_email(target_email, subj_vip, body_vip)
+                    
+                    if res_mail == "OK":
+                        st.success(f"✅ Доступ VIP активирован для {target_email}! Письмо успешно отправлено.")
+                    else:
+                        st.warning(f"⚠️ Доступ выдан, но письмо не ушло. Ошибка: {res_mail}")
+                        
                 except Exception as e:
                     st.error(f"Ошибка БД: {e}")
             else:
@@ -526,9 +573,14 @@ else:
     current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
     limit_text = f"{msgs_today} / {current_limit}"
     can_send = msgs_today < current_limit
-    status_text = "🌟 VIP" if st.session_state.is_vip else ("🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый")
-
-    # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
+    if st.session_state.is_vip:
+        # Показываем остаток дней, по умолчанию 61
+        v_left = st.session_state.user_profile.get("vip_days_remaining", 61)
+        status_text = f"🌟 VIP (Осталось визитов: {v_left})"
+    else:
+        status_text = "🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый"
+    
+   # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
     with st.expander(f"⚙️ ПАНЕЛЬ УПРАВЛЕНИЯ: {st.session_state.username}", expanded=False):
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
         st.markdown(f"**Энергия:** {limit_text}")
