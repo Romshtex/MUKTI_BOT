@@ -96,6 +96,9 @@ def generate_temp_password(length=8):
 def get_unsubscribe_token(email):
     return hmac.new(SECRET_KEY.encode(), email.encode(), hashlib.sha256).hexdigest()
 
+def get_verify_token(email):
+    return hmac.new(SECRET_KEY.encode(), (email + "_verify").encode(), hashlib.sha256).hexdigest()
+
 # --- ПРОВЕРКА СОГЛАСИЯ НА COOKIES ---
 if "cookies_accepted_session" not in st.session_state:
     st.session_state.cookies_accepted_session = False
@@ -133,6 +136,25 @@ if "unsubscribe" in st.query_params and "token" in st.query_params:
             st.query_params.clear()
     else:
         st.error("Ошибка верификации. Недействительный токен отписки.")
+        st.query_params.clear()
+
+# --- ПЕРЕХВАТЧИК ВЕРИФИКАЦИИ EMAIL ---
+if "verify" in st.query_params and "token" in st.query_params:
+    ver_email = st.query_params["verify"]
+    token = st.query_params["token"]
+    
+    if token == get_verify_token(ver_email):
+        row_data, r_num = db.load_user(ver_email)
+        if row_data:
+            try: profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+            except: profile = {}
+            
+            profile["email_verified"] = True
+            db.update_field(r_num, 6, json.dumps(profile)) 
+            st.success(f"✅ Сектор доступа подтвержден! Email {ver_email} закреплен за тобой.")
+            st.query_params.clear()
+    else:
+        st.error("Ошибка верификации. Токен устарел или поврежден.")
         st.query_params.clear()
 
 # --- МОДЕЛЬ ---
@@ -306,6 +328,14 @@ if not st.session_state.logged_in:
                     # Убрали hash_password(). База данных сама захеширует чистый пароль.
                     res = db.register_user(new_email, new_user, new_pwd)
                     if res == "OK":
+                        # --- НОВЫЙ БЛОК: Отправка письма верификации ---
+                        v_token = get_verify_token(new_email)
+                        v_url = f"https://mukti.pro/?verify={new_email}&token={v_token}"
+                        subj = "Добро пожаловать в МУКТИ! Подтверди доступ"
+                        body = f"Приветствую, {new_user}. Твой профиль в системе МУКТИ успешно создан.\n\nЧтобы закрепить терминал за собой и иметь возможность получить Полный доступ (VIP), подтверди свой Email, перейдя по ссылке:\n{v_url}\n\nАрхитектор."
+                        send_email(new_email, subj, body)
+                        # ------------------------------------------------
+                        
                         cookie_manager.set("mukti_user", new_email, expires_at=datetime.now() + timedelta(days=30))
                         load_user_to_session(new_email)
                         time.sleep(0.5)
