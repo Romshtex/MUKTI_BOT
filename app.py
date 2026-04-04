@@ -90,9 +90,6 @@ st.markdown("""
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES И КРИПТОГРАФИИ ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
 def generate_temp_password(length=8):
     return secrets.token_urlsafe(length)[:length]
 
@@ -280,13 +277,13 @@ if not st.session_state.logged_in:
                     row_data, r_num = db.load_user(email_in)
                     if row_data:
                         db_pwd = row_data[2]
-                        pwd_hash = hash_password(pwd_in)
                         
-                        # Поддержка старых (незашифрованных) паролей с авто-обновлением
-                        if db_pwd == pwd_hash or db_pwd == pwd_in:
+                        # Используем умную проверку из database.py
+                        if db.check_password(pwd_in, db_pwd):
+                            # Если пароль в базе лежал в открытом виде, перезапишем его сильным хешем
                             if db_pwd == pwd_in:
-                                db.update_field(r_num, 3, pwd_hash) # Обновляем старый пароль на зашифрованный (Колонка 3)
-                                
+                                db.update_field(r_num, 3, db.hash_password(pwd_in))
+                                                        
                             cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
                             load_user_to_session(email_in)
                             time.sleep(0.5) 
@@ -326,7 +323,7 @@ if not st.session_state.logged_in:
                     row_data, r_num = db.load_user(rec_email)
                     if row_data:
                         new_temp_pwd = generate_temp_password()
-                        db.update_field(r_num, 3, hash_password(new_temp_pwd))
+                        db.update_field(r_num, 3, db.hash_password(new_temp_pwd))
                         
                         subject = "МУКТИ: Доступ к системе"
                         body = f"Приветствую, {row_data[1]}.\n\nТвой новый временный пароль для доступа в систему: {new_temp_pwd}\n\nСразу после входа рекомендую сохранить его в надежном месте.\nАрхитектор."
