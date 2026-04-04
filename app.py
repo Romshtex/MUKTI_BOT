@@ -604,7 +604,6 @@ else:
 
                         if res_admin == "OK": 
                             st.success("✅ Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
-                            st.balloons()
                         else: 
                             st.error(f"Сбой связи: {res_admin}")
                 else: 
@@ -680,7 +679,7 @@ else:
                                     send_email(user_email, subj_user, body_user)
                                     
                                     st.success("✅ Запрос отправлен! Проверь свою почту (и папку Спам) — туда ушла инструкция по активации.")
-                                    st.balloons()
+    
                                 else:
                                     st.error(f"Сбой связи с сервером. Ошибка: {res}")
                             else:
