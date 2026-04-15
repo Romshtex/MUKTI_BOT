@@ -12,6 +12,7 @@ import hashlib
 import secrets
 import hmac
 import requests
+import os
 
 # --- ИКОНКА ДЛЯ ВКЛАДКИ БРАУЗЕРА (FAVICON) ---
 st.set_page_config(page_title="МУКТИ | Система выхода", page_icon="logo.png")
@@ -38,8 +39,8 @@ except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
 # --- ПУТИ К АКТИВАМ ---
-BOT_AVATAR = "assets/mukti_avatar.png"   # Твой кадрированный рендер Мукти
-USER_AVATAR = "assets/user_avatar.png"  # Золотой Феникс (Пилот)
+BOT_AVATAR = "assets/mukti_avatar.png" if os.path.exists("assets/mukti_avatar.png") else "👁️"
+USER_AVATAR = "assets/fenix.jpg" if os.path.exists("assets/fenix.jpg") else "⚡"
 
 # --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
 settings.inject_custom_css()
