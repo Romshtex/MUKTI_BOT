@@ -127,7 +127,6 @@ def get_model():
     except: return None
 
 model = get_model()
-settings.load_css() 
 
 # --- СОСТОЯНИЕ ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
