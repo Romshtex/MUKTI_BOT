@@ -37,7 +37,7 @@ try:
 except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
-# --- КАСТОМНЫЕ ВЕКТОРНЫЕ АВАТАРЫ (SVG) ---
+# --- ПУТИ К АКТИВАМ ---
 BOT_AVATAR = "assets/mukti_avatar.png"   # Твой кадрированный рендер Мукти
 USER_AVATAR = "assets/user_avatar.png"  # Золотой Феникс (Пилот)
 
