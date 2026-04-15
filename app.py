@@ -38,8 +38,8 @@ except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
 # --- КАСТОМНЫЕ ВЕКТОРНЫЕ АВАТАРЫ (SVG) ---
-USER_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232196F3' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E"
-BOT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300E676' d='M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zm-6 0h2v2h-2V9zm-6 0h2v2H8V9z'/%3E%3C/svg%3E"
+BOT_AVATAR = "assets/mukti_avatar.png"   # Твой кадрированный рендер Мукти
+USER_AVATAR = "assets/user_avatar.png"  # Золотой Феникс (Пилот)
 
 # --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
 st.markdown("""
