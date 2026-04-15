@@ -1,9 +1,9 @@
 import streamlit as st
 
 # --- КОНСТАНТЫ СИСТЕМЫ ---
-LIMIT_NEW_USER = 10     # Лимит сообщений для новичков (первые 3 дня)
-LIMIT_OLD_USER = 5      # Лимит для опытных пользователей
-HISTORY_DEPTH = 30      # Глубина памяти чата
+LIMIT_NEW_USER = 10     
+LIMIT_OLD_USER = 5      
+HISTORY_DEPTH = 30      
 VIP_CODE_DEFAULT = "MUKTI_BOSS"
 
 # --- ЯДРО ЛОГИКИ: СИСТЕМНЫЙ ПРОМПТ ---
@@ -78,6 +78,21 @@ def inject_custom_css():
             background-color: #D4AF37 !important;
             color: #121212 !important;
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.4) !important;
+        }}
+
+        /* НАТИВНЫЙ ЧАТ-ИНПУТ (Новый код) */
+        [data-testid="stChatInput"] {{
+            background-color: #1A1A1A !important;
+            border: 1px solid rgba(212, 175, 55, 0.3) !important;
+            border-radius: 12px !important;
+        }}
+        [data-testid="stChatInput"] textarea {{
+            color: #EAEAEA !important;
+            font-family: 'Montserrat', sans-serif !important;
+        }}
+        /* Цвет иконки отправки */
+        [data-testid="stChatInputSubmit"] {{
+            color: #D4AF37 !important; 
         }}
 
         .stTextInput > div > div > input, .stTextArea > div > div > textarea {{
