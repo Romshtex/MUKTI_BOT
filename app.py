@@ -41,51 +41,8 @@ except ImportError:
 BOT_AVATAR = "assets/mukti_avatar.png"   # Твой кадрированный рендер Мукти
 USER_AVATAR = "assets/user_avatar.png"  # Золотой Феникс (Пилот)
 
-# --- CSS: МАТРИЦА С ТОНИРОВКОЙ ---
-st.markdown("""
-<style>
-    .stApp > header { 
-        background-color: rgba(20, 20, 20, 0.95) !important; 
-        border-bottom: 1px solid rgba(0, 230, 118, 0.3) !important;
-    }
-    .stApp > header * {
-        color: #00E676 !important;
-        fill: #00E676 !important;
-    }
-    .main {
-        background-color: rgba(14, 17, 23, 0.85) !important; 
-        border-radius: 15px;
-    }
-    p, div, span, h1, h2, h3, h4, h5, h6, label, li {
-        color: #FAFAFA !important;
-    }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
-        background-color: rgba(30, 30, 30, 0.9) !important;
-        color: #00E676 !important;
-        border: 1px solid #333 !important;
-    }
-    .stChatMessage {
-        background-color: rgba(30, 30, 30, 0.8) !important;
-        color: #FAFAFA !important;
-        border: 1px solid rgba(0, 230, 118, 0.2) !important;
-    }
-    h1, h2, h3 { color: #00E676 !important; }
-    div[data-testid="stMetricValue"] { color: #00E676 !important; }
-    
-    /* Стили для выпадающего меню (expander) */
-    [data-testid="stExpander"] {
-        border-color: #00E676 !important;
-        background-color: rgba(20, 20, 20, 0.8) !important;
-        border-radius: 10px !important;
-    }
-    [data-testid="stExpander"] summary {
-        color: #00E676 !important;
-    }
-    [data-testid="stExpander"] summary svg {
-        fill: #00E676 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
+settings.inject_custom_css()
 
 # --- ИНИЦИАЛИЗАЦИЯ COOKIES И КРИПТОГРАФИИ ---
 cookie_manager = stx.CookieManager(key="mukti_cookies")
