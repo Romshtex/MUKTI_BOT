@@ -39,13 +39,22 @@ except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
 # --- ПУТИ К АКТИВАМ ---
-def safe_avatar(path: str, fallback: str):
+def load_avatar_bytes(path: str, fallback: str):
+    """
+    Надежный аватар для st.chat_message:
+    - если файл читается -> возвращаем bytes
+    - иначе -> возвращаем emoji (fallback)
+    """
     try:
         if path and os.path.isfile(path):
-            return path
+            with open(path, "rb") as f:
+                return f.read()
     except Exception:
         pass
     return fallback
+
+BOT_AVATAR = load_avatar_bytes("assets/mukti_avatar.png", "👁️")
+USER_AVATAR = load_avatar_bytes("assets/user_avatar.png", "⚡")
 
 BOT_AVATAR = safe_avatar("assets/mukti_avatar.png", "👁️")
 USER_AVATAR = safe_avatar("assets/user_avatar.png", "⚡")
