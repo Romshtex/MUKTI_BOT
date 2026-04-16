@@ -56,8 +56,6 @@ def load_avatar_bytes(path: str, fallback: str):
 BOT_AVATAR = load_avatar_bytes("assets/mukti_avatar.png", "👁️")
 USER_AVATAR = load_avatar_bytes("assets/user_avatar.png", "⚡")
 
-BOT_AVATAR = safe_avatar("assets/mukti_avatar.png", "👁️")
-USER_AVATAR = safe_avatar("assets/user_avatar.png", "⚡")
 
 # --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
 settings.inject_custom_css()
