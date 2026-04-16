@@ -63,19 +63,21 @@ def load_avatar(path: str, fallback: str):
         return fallback
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-BOT_PATH = os.path.join(BASE_DIR, "assets", "mukti_avatar.png")
-USER_PATH = os.path.join(BASE_DIR, "assets", "user_avatar.png")
+st.write("BASE_DIR:", BASE_DIR)
+
+st.write("BOT exists(rel):", os.path.isfile("assets/mukti_avatar.png"))
+st.write("USER exists(rel):", os.path.isfile("assets/user_avatar.png"))
+
+st.write("BOT exists(abs):", os.path.isfile(os.path.join(BASE_DIR, "assets", "mukti_avatar.png")))
+st.write("USER exists(abs):", os.path.isfile(os.path.join(BASE_DIR, "assets", "user_avatar.png")))
+
+if os.path.isfile(os.path.join(BASE_DIR, "assets", "mukti_avatar.png")):
+    st.write("BOT size:", os.path.getsize(os.path.join(BASE_DIR, "assets", "mukti_avatar.png")))
+if os.path.isfile(os.path.join(BASE_DIR, "assets", "user_avatar.png")):
+    st.write("USER size:", os.path.getsize(os.path.join(BASE_DIR, "assets", "user_avatar.png")))
 
 BOT_AVATAR = load_avatar(BOT_PATH, "👁️")
 USER_AVATAR = load_avatar(USER_PATH, "⚡")
-
-st.write("BOT_AVATAR type:", type(BOT_AVATAR))
-st.write("USER_AVATAR type:", type(USER_AVATAR))
-
-if isinstance(BOT_AVATAR, (bytes, bytearray)):
-    st.write("BOT_AVATAR bytes len:", len(BOT_AVATAR))
-if isinstance(USER_AVATAR, (bytes, bytearray)):
-    st.write("USER_AVATAR bytes len:", len(USER_AVATAR))
 
 
 # --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
