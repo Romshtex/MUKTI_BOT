@@ -39,8 +39,16 @@ except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
 # --- ПУТИ К АКТИВАМ ---
-BOT_AVATAR = "assets/mukti_avatar.png" if os.path.exists("assets/mukti_avatar.png") else "👁️"
-USER_AVATAR = "assets/fenix.jpg" if os.path.exists("assets/fenix.jpg") else "⚡"
+def safe_avatar(path: str, fallback: str):
+    try:
+        if path and os.path.isfile(path):
+            return path
+    except Exception:
+        pass
+    return fallback
+
+BOT_AVATAR = safe_avatar("assets/mukti_avatar.png", "👁️")
+USER_AVATAR = safe_avatar("assets/user_avatar.png", "⚡")
 
 # --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
 settings.inject_custom_css()
