@@ -65,12 +65,12 @@ if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="
     st.markdown("""
     <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #00E676; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
         <span style='color: #FAFAFA; font-size: 14px;'>
-            🍪 Система МУКТИ использует файлы cookie, чтобы сохранять твою сессию и обеспечивать безопасность. 
+            Система МУКТИ использует файлы cookie, чтобы сохранять твою сессию и обеспечивать безопасность. 
             Продолжая использовать терминал, ты даешь согласие на их обработку.
         </span>
     </div>
     """, unsafe_allow_html=True)
-    if st.button("✅ ПРИНЯТЬ И СКРЫТЬ", key="accept_cookies_btn", use_container_width=True):
+    if st.button("ПРИНЯТЬ И СКРЫТЬ", key="accept_cookies_btn", use_container_width=True):
         cookie_manager.set("cookies_accepted", "true", expires_at=datetime.now() + timedelta(days=365))
         st.session_state.cookies_accepted_session = True
         time.sleep(0.5) # Даем браузеру долю секунды на запись файла
@@ -109,7 +109,7 @@ if "verify" in st.query_params and "token" in st.query_params:
             
             profile["email_verified"] = True
             db.update_field(r_num, 6, json.dumps(profile)) 
-            st.success(f"✅ Сектор доступа подтвержден! Email {ver_email} закреплен за тобой.")
+            st.success(f"Сектор доступа подтвержден! Email {ver_email} закреплен за тобой.")
             st.query_params.clear()
     else:
         st.error("Ошибка верификации. Токен устарел или поврежден.")
@@ -380,7 +380,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
     st.markdown("---")
     
 # Мы убрали col_mail, так как рассылку из UI делать нельзя (она теперь работает в фоне)
-    st.markdown("### 👑 Выдача VIP-доступа")
+    st.markdown("### Выдача VIP-доступа")
     with st.form("vip_form"):
         target_email = st.text_input("Введи Email для активации VIP").strip().lower()
         if st.form_submit_button("АКТИВИРОВАТЬ VIP"):
@@ -419,16 +419,16 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                     res_mail = send_email(target_email, subj_vip, body_vip)
                     
                     if res_mail == "OK":
-                        st.success(f"✅ Доступ VIP активирован для {target_email}! Письмо успешно отправлено.")
+                        st.success(f"Доступ VIP активирован для {target_email}! Письмо успешно отправлено.")
                     else:
-                        st.warning(f"⚠️ Доступ выдан, но письмо не ушло. Ошибка: {res_mail}")
+                        st.warning(f"Доступ выдан, но письмо не ушло. Ошибка: {res_mail}")
                         
                 except Exception as e:
                     st.error(f"Ошибка БД: {e}")
             else:
                 st.error("Аватар с таким Email не найден.")
 
-    st.markdown("### 🚀 Протокол рассылки")
+    st.markdown("### Протокол рассылки")
     st.markdown("Автоматическая проверка базы и отправка писем (3, 7, 14 дней).")
     if st.button("ЗАПУСТИТЬ РАССЫЛКУ", type="primary", use_container_width=True):
         with st.spinner("Сбор данных и отправка писем..."):
@@ -482,7 +482,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                         sent_count += 1
                         time.sleep(1) 
                         
-            st.success(f"✅ Рассылка завершена. Писем отправлено: {sent_count}")
+            st.success(f"Рассылка завершена. Писем отправлено: {sent_count}")
 
     st.markdown("---")
     st.markdown("### 👥 База Аватаров (CRM)")
@@ -492,7 +492,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
         st.info("Матрица пока пуста. Ожидаем первых Аватаров.")
         
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🚪 ВЫЙТИ ИЗ ТЕРМИНАЛА АРХИТЕКТОРА", use_container_width=True):
+    if st.button("ВЫЙТИ ИЗ ТЕРМИНАЛА АРХИТЕКТОРА", use_container_width=True):
         try: cookie_manager.delete("mukti_user")
         except: pass
         st.session_state.logged_in = False
@@ -512,7 +512,7 @@ elif st.session_state.reading_message:
         st.markdown(message_text)
         st.markdown("</div><br>", unsafe_allow_html=True)
         
-        if st.button("✅ ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
+        if st.button("ДАННЫЕ ОСОЗНАЛ (ОТКРЫТЬ ТЕРМИНАЛ)", use_container_width=True):
             st.session_state.user_profile["msg_day"] = next_day
             st.session_state.user_profile["last_msg_date"] = get_mukti_date()
             st.session_state.user_profile["last_active"] = str(date.today())
@@ -565,7 +565,7 @@ else:
         status_text = "🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый"
     
    # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
-    with st.expander(f"⚙️ ПАНЕЛЬ УПРАВЛЕНИЯ: {st.session_state.username}", expanded=False):
+    with st.expander(f"ПАНЕЛЬ УПРАВЛЕНИЯ: {st.session_state.username}", expanded=False):
         st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
         st.markdown(f"**Энергия:** {limit_text}")
         st.markdown(f"**Режим:** {status_text}")
@@ -573,15 +573,15 @@ else:
         st.markdown("---")
         col_nav1, col_nav2, col_nav3 = st.columns(3)
         with col_nav1:
-            if st.button("💬 ТЕРМИНАЛ", use_container_width=True):
+            if st.button("ТЕРМИНАЛ", use_container_width=True):
                 st.session_state.current_view = "chat"
                 st.rerun()
         with col_nav2:
-            if st.button("💌 ОТДЕЛ ЗАБОТЫ", use_container_width=True):
+            if st.button("ОТДЕЛ ЗАБОТЫ", use_container_width=True):
                 st.session_state.current_view = "care"
                 st.rerun()
         with col_nav3:
-            if st.button("🚪 ВЫХОД", use_container_width=True):
+            if st.button("ВЫХОД", use_container_width=True):
                 try: cookie_manager.delete("mukti_user")
                 except: pass
                 st.session_state.logged_in = False
@@ -596,8 +596,8 @@ else:
         
         # Если почта НЕ подтверждена - блокируем форму и даем кнопку повторной отправки
         if not is_verified:
-            st.warning("⚠️ Для связи с Архитектором и запроса Полного доступа (VIP) необходимо подтвердить Email.")
-            if st.button("✉️ Отправить письмо подтверждения еще раз"):
+            st.warning("Для связи с Архитектором и запроса Полного доступа (VIP) необходимо подтвердить Email.")
+            if st.button("Отправить письмо подтверждения еще раз"):
                 with st.spinner("Формируем канал связи..."):
                     v_token = get_verify_token(st.session_state.user_email)
                     v_url = f"https://mukti.pro/?verify={st.session_state.user_email}&token={v_token}"
@@ -617,7 +617,7 @@ else:
                 
             with st.form("care_form"):
                 user_msg = st.text_area("Твое сообщение:", value=default_text, height=150)
-                submit_care = st.form_submit_button("🚀 ОТПРАВИТЬ АРХИТЕКТОРУ")
+                submit_care = st.form_submit_button("ОТПРАВИТЬ АРХИТЕКТОРУ")
                 
                 if submit_care:
                     if user_msg.strip():
@@ -657,7 +657,7 @@ else:
                                 send_email(st.session_state.user_email, subj_user, body_user)
 
                             if res_admin == "OK": 
-                                st.success("✅ Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
+                                st.success("Сообщение успешно доставлено! Ответ (или инструкция по VIP) придет на твою почту. Обязательно проверь папку «Спам»!")
                             else: 
                                 st.error(f"Сбой связи: {res_admin}")
                     else: 
@@ -673,9 +673,9 @@ else:
 
         if not can_send:
             if st.session_state.is_vip:
-                st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>🔋 Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
+                st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
             else:
-                st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>⚠️ Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
+                st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
                 
                 # --- КНОПКА ЗАПРОСА VIP (С ЗАЩИТОЙ ВЕРИФИКАЦИИ) ---
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -683,9 +683,9 @@ else:
                     is_verified_chat = st.session_state.user_profile.get("email_verified", False)
                     
                     if not is_verified_chat:
-                        st.warning("⚠️ Для запроса Полного доступа необходимо подтвердить Email.")
+                        st.warning("Для запроса Полного доступа необходимо подтвердить Email.")
                         # Обязательно уникальный key для кнопки в чате
-                        if st.button("✉️ Отправить письмо подтверждения еще раз", key="resend_email_chat"):
+                        if st.button("Отправить письмо подтверждения еще раз", key="resend_email_chat"):
                             with st.spinner("Формируем канал связи..."):
                                 v_token = get_verify_token(st.session_state.user_email)
                                 v_url = f"https://mukti.pro/?verify={st.session_state.user_email}&token={v_token}"
@@ -707,12 +707,12 @@ else:
                                 height=150
                             )
                         
-                            submit_vip = st.form_submit_button("🚀 Отправить запрос")
+                            submit_vip = st.form_submit_button("Отправить запрос")
                             
                             if submit_vip:
                                 if user_comment.strip():
                                     user_email = st.session_state.user_email
-                                    subj_admin = f"🔥 НОВЫЙ ЗАПРОС НА VIP от {user_email}"
+                                    subj_admin = f"НОВЫЙ ЗАПРОС НА VIP от {user_email}"
                                     body_admin = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{user_comment}"
                                     
                                     # Отправляем письмо Архитектору
@@ -743,7 +743,7 @@ else:
 С уважением Роман, Архитектор проекта МУКТИ"""
                                         send_email(user_email, subj_user, body_user)
                                         
-                                        st.success("✅ Запрос отправлен! Проверь свою почту (и папку Спам) — туда ушла инструкция по активации.")
+                                        st.success("Запрос отправлен! Проверь свою почту (и папку Спам) — туда ушла инструкция по активации.")
                                     else:
                                         st.error(f"Сбой связи с сервером. Ошибка: {res}")
                                 else:
@@ -817,7 +817,7 @@ else:
                     easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
                     if any(word in prompt.lower() for word in easter_eggs):
                         resp = random.choice([
-                            "🚨 **ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** 🚨\nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
+                            "**ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** \nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
                             "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
                         ])
                         with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
