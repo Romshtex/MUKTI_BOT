@@ -39,22 +39,39 @@ except ImportError:
     BOOK_SUMMARY = "Методика освобождения."
 
 # --- ПУТИ К АКТИВАМ ---
-def load_avatar_bytes(path: str, fallback: str):
+def load_avatar(path: str, fallback: str):
     """
-    Надежный аватар для st.chat_message:
-    - если файл читается -> возвращаем bytes
-    - иначе -> возвращаем emoji (fallback)
+    Надежный аватар:
+    - читаем файл в bytes
+    - проверяем, что PIL реально распознаёт изображение
+    - если нет -> fallback emoji (приложение не падает)
     """
     try:
-        if path and os.path.isfile(path):
-            with open(path, "rb") as f:
-                return f.read()
-    except Exception:
-        pass
-    return fallback
+        if not (path and os.path.isfile(path)):
+            return fallback
 
-BOT_AVATAR = load_avatar_bytes("assets/mukti_avatar.png", "👁️")
-USER_AVATAR = load_avatar_bytes("assets/user_avatar.png", "⚡")
+        with open(path, "rb") as f:
+            data = f.read()
+
+        # Валидация, что это реальная картинка
+        from PIL import Image
+        import io
+        Image.open(io.BytesIO(data)).verify()
+
+        return data
+    except Exception:
+        return fallback
+
+BOT_AVATAR = load_avatar("assets/mukti_avatar.png", "👁️")
+USER_AVATAR = load_avatar("assets/user_avatar.png", "⚡")
+
+st.write("BOT_AVATAR type:", type(BOT_AVATAR))
+st.write("USER_AVATAR type:", type(USER_AVATAR))
+
+if isinstance(BOT_AVATAR, (bytes, bytearray)):
+    st.write("BOT_AVATAR bytes len:", len(BOT_AVATAR))
+if isinstance(USER_AVATAR, (bytes, bytearray)):
+    st.write("USER_AVATAR bytes len:", len(USER_AVATAR))
 
 
 # --- ПРИМЕНЕНИЕ ПРЕМИУМ-СТИЛЕЙ ---
