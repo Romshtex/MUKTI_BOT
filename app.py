@@ -62,8 +62,12 @@ def load_avatar(path: str, fallback: str):
     except Exception:
         return fallback
 
-BOT_AVATAR = load_avatar("assets/mukti_avatar.png", "👁️")
-USER_AVATAR = load_avatar("assets/user_avatar.png", "⚡")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BOT_PATH = os.path.join(BASE_DIR, "assets", "mukti_avatar.png")
+USER_PATH = os.path.join(BASE_DIR, "assets", "user_avatar.png")
+
+BOT_AVATAR = load_avatar(BOT_PATH, "👁️")
+USER_AVATAR = load_avatar(USER_PATH, "⚡")
 
 st.write("BOT_AVATAR type:", type(BOT_AVATAR))
 st.write("USER_AVATAR type:", type(USER_AVATAR))
