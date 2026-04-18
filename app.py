@@ -130,7 +130,7 @@ if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="
         st.rerun()
 
 # --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
-iif "unsubscribe_token" in st.query_params:
+if "unsubscribe_token" in st.query_params:
     token = st.query_params["unsubscribe_token"]
     # Ищем пользователя по совпадению токена — email в URL не передаём
     found = False
