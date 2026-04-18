@@ -160,6 +160,8 @@ if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "calibration_step" not in st.session_state: st.session_state.calibration_step = 0
 if "reading_message" not in st.session_state: st.session_state.reading_message = False
 if "current_view" not in st.session_state: st.session_state.current_view = "chat"
+if "pending_prompt" not in st.session_state:
+    st.session_state.pending_prompt = None
 
 # --- ФУНКЦИИ ---
 def send_email(to_email, subject, body):
@@ -181,6 +183,17 @@ def send_email(to_email, subject, body):
         return "OK"
     except Exception as e: 
         return f"ОТКАЗ ЯНДЕКСА (Порт 587): {str(e)}"
+
+def clip(text: str, max_chars: int = 1200) -> str:
+    text = text or ""
+    return text if len(text) <= max_chars else (text[:max_chars] + "…")
+
+def build_history_text(messages, last_n: int = 6, max_chars_per_msg: int = 1200) -> str:
+    last_msgs = [m for m in messages if m.get("role") != "system"][-last_n:]
+    return "\n".join(
+        f"{m['role'].capitalize()}: {clip(m.get('content', ''), max_chars_per_msg)}"
+        for m in last_msgs
+    )
 
 def get_mukti_date():
     now = datetime.now()
@@ -700,64 +713,117 @@ else:
                         st.warning("Напиши текст сообщения.")
 
 # ВЬЮ: ЧАТ
-    else:
-        for msg in st.session_state.messages:
-            if msg["role"] != "system":
-                av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
-                with st.chat_message(msg["role"], avatar=av):
-                    st.markdown(msg["content"])
+else:
+    # --- 1) РЕНДЕРИМ ТОЛЬКО ПОСЛЕДНИЕ N СООБЩЕНИЙ ---
+    MAX_RENDERED = 40  # поменяй на 30 или 50 при желании
+    msgs_to_render = st.session_state.messages[-MAX_RENDERED:]
 
-        if not can_send:
-            if st.session_state.is_vip:
-                st.markdown("<div class='limit-alert' style='border-color: #B8973A;'><b>Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
-                
-                # --- КНОПКА ЗАПРОСА VIP (С ЗАЩИТОЙ ВЕРИФИКАЦИИ) ---
-                st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("Написать в Отдел заботы (Запросить VIP)"):
-                    is_verified_chat = st.session_state.user_profile.get("email_verified", False)
-                    
-                    if not is_verified_chat:
-                        st.warning("Для запроса Полного доступа необходимо подтвердить Email.")
-                        # Обязательно уникальный key для кнопки в чате
-                        if st.button("Отправить письмо подтверждения еще раз", key="resend_email_chat"):
-                            with st.spinner("Формируем канал связи..."):
-                                v_token = get_verify_token(st.session_state.user_email)
-                                v_url = f"https://mukti.pro/?verify={st.session_state.user_email}&token={v_token}"
-                                subj = "МУКТИ: Повторная отправка ссылки"
-                                body = f"Приветствую, {st.session_state.username}.\n\nСсылка для подтверждения твоего терминала:\n{v_url}\n\nАрхитектор."
-                                res_m = send_email(st.session_state.user_email, subj, body)
-                                if res_m == "OK": st.success("Письмо отправлено! Проверь почту (и папку Спам).")
-                                else: st.error("Ошибка отправки почты.")
-                    else:
-                        st.write("Запроси полный доступ, чтобы снять лимиты сообщений и продолжить работу прямо сейчас.")
-                    
-                        # Задаем шаблон для чата
-                        vip_template = "Привет, Архитектор!\n\nЯ прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\nПрошу открыть мне Полный доступ (VIP)."
-                    
-                        with st.form("vip_request_form_chat"):
-                            user_comment = st.text_area(
-                                "Комментарий для Архитектора (по желанию):", 
-                                value=vip_template, 
-                                height=150
-                            )
-                        
-                            submit_vip = st.form_submit_button("Отправить запрос")
-                            
-                            if submit_vip:
-                                if user_comment.strip():
-                                    user_email = st.session_state.user_email
-                                    subj_admin = f"НОВЫЙ ЗАПРОС НА VIP от {user_email}"
-                                    body_admin = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{user_comment}"
-                                    
-                                    # Отправляем письмо Архитектору
-                                    res = send_email(YANDEX_EMAIL, subj_admin, body_admin)
-                                    
-                                    if res == "OK":
-                                        # Отправляем инструкцию ПОЛЬЗОВАТЕЛЮ
-                                        subj_user = "МУКТИ: Активация Полного доступа (VIP)"
-                                        body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
+    for msg in msgs_to_render:
+        if msg.get("role") != "system":
+            av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
+            with st.chat_message(msg["role"], avatar=av):
+                st.markdown(msg.get("content", ""))
+
+    # --- 2) ЕСЛИ ЕСТЬ ОЖИДАЮЩИЙ ПРОМПТ -> ГЕНЕРИМ ОТВЕТ В ОТДЕЛЬНОМ ПРОГОНЕ ---
+    if st.session_state.pending_prompt:
+        pending = st.session_state.pending_prompt
+
+        with st.chat_message("assistant", avatar=BOT_AVATAR):
+            placeholder = st.empty()
+            placeholder.markdown("_Оцифровка мыслей…_")
+
+            try:
+                sys_prompt = settings.get_system_prompt(
+                    st.session_state.username,
+                    st.session_state.user_profile,
+                    get_book_summary()
+                )
+
+                history_text = build_history_text(st.session_state.messages, last_n=6, max_chars_per_msg=1200)
+                full_p = f"{sys_prompt}\n\nИстория последних сообщений:\n{history_text}\n\nUser: {pending}"
+
+                response = ai_client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=full_p
+                )
+
+                txt = (response.text or "").strip()
+                if not txt:
+                    txt = "Похоже, ответ пришёл пустым. Попробуй повторить запрос."
+
+                placeholder.markdown(txt)
+
+                st.session_state.messages.append({"role": "assistant", "content": txt})
+                db.save_history(st.session_state.row_num, st.session_state.messages)
+
+            except Exception as e:
+                placeholder.markdown("**Сервер перегружен или временно недоступен.** Попробуй ещё раз через 10–20 секунд.")
+                st.error(f"СИСТЕМНАЯ ОШИБКА ИИ: {e}")
+
+            finally:
+                st.session_state.pending_prompt = None
+
+        st.rerun()
+
+    # --- 3) ЛИМИТЫ (если энергии нет) ---
+    if not can_send:
+        if st.session_state.is_vip:
+            st.markdown(
+                "<div class='limit-alert' style='border-color: #B8973A;'><b>Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                "<div class='limit-alert' style='border-color: #FF3D00;'><b>Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>",
+                unsafe_allow_html=True
+            )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("Написать в Отдел заботы (Запросить VIP)"):
+                is_verified_chat = st.session_state.user_profile.get("email_verified", False)
+
+                if not is_verified_chat:
+                    st.warning("Для запроса Полного доступа необходимо подтвердить Email.")
+                    if st.button("Отправить письмо подтверждения еще раз", key="resend_email_chat"):
+                        with st.spinner("Формируем канал связи..."):
+                            v_token = get_verify_token(st.session_state.user_email)
+                            v_url = f"https://mukti.pro/?verify={st.session_state.user_email}&token={v_token}"
+                            subj = "МУКТИ: Повторная отправка ссылки"
+                            body = f"Приветствую, {st.session_state.username}.\n\nСсылка для подтверждения твоего терминала:\n{v_url}\n\nАрхитектор."
+                            res_m = send_email(st.session_state.user_email, subj, body)
+                            if res_m == "OK":
+                                st.success("Письмо отправлено! Проверь почту (и папку Спам).")
+                            else:
+                                st.error("Ошибка отправки почты.")
+                else:
+                    st.write("Запроси полный доступ, чтобы снять лимиты сообщений и продолжить работу прямо сейчас.")
+
+                    vip_template = (
+                        "Привет, Архитектор!\n\n"
+                        "Я прошел(а) первый день калибровки и готов(а) двигаться дальше.\n\n"
+                        "Прошу открыть мне Полный доступ (VIP)."
+                    )
+
+                    with st.form("vip_request_form_chat"):
+                        user_comment = st.text_area(
+                            "Комментарий для Архитектора (по желанию):",
+                            value=vip_template,
+                            height=150
+                        )
+
+                        submit_vip = st.form_submit_button("Отправить запрос")
+
+                        if submit_vip:
+                            if user_comment.strip():
+                                user_email = st.session_state.user_email
+                                subj_admin = f"НОВЫЙ ЗАПРОС НА VIP от {user_email}"
+                                body_admin = f"Пользователь: {user_email}\nЗапрашивает VIP-доступ.\n\nКомментарий:\n{user_comment}"
+
+                                res = send_email(YANDEX_EMAIL, subj_admin, body_admin)
+
+                                if res == "OK":
+                                    subj_user = "МУКТИ: Активация Полного доступа (VIP)"
+                                    body_user = f"""Приветствую, {st.session_state.username}! На связи Роман - Архитектор проекта МУКТИ.
 
 В данный момент система МУКТИ находится в стадии закрытого бета-тестирования (MVP), поэтому шлюзы оплаты еще не автоматизированы, и я активирую профили пользователей вручную.
 
@@ -777,13 +843,29 @@ else:
 В течение нескольких часов я вручную активирую твой VIP-статус.
 
 С уважением Роман, Архитектор проекта МУКТИ"""
-                                        send_email(user_email, subj_user, body_user)
-                                        
-                                        st.success("Запрос отправлен! Проверь свою почту (и папку Спам) — туда ушла инструкция по активации.")
-                                    else:
-                                        st.error(f"Сбой связи с сервером. Ошибка: {res}")
+                                    send_email(user_email, subj_user, body_user)
+
+                                    st.success("Запрос отправлен! Проверь свою почту (и папку Спам) — туда ушла инструкция по активации.")
                                 else:
-                                    st.warning("Текст сообщения не может быть пустым.")
+                                    st.error(f"Сбой связи с сервером. Ошибка: {res}")
+                            else:
+                                st.warning("Текст сообщения не может быть пустым.")
+
+    # --- 4) ВВОД СООБЩЕНИЯ (двухфазно) ---
+    if can_send and not st.session_state.pending_prompt:
+        prompt = st.chat_input("Написать наставнику...")
+
+        if prompt:
+            # сохраняем сообщение пользователя
+            st.session_state.messages.append({"role": "user", "content": prompt})
+
+            # сохраняем историю сразу (по желанию, можно убрать)
+            db.save_history(st.session_state.row_num, st.session_state.messages)
+
+            # ставим ожидание ответа
+            st.session_state.pending_prompt = prompt
+
+            st.rerun()
 
         # --- ЛОГИКА ЧАТА И ВВОДА СООБЩЕНИЙ ---
         if can_send:
