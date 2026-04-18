@@ -130,21 +130,25 @@ if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="
         st.rerun()
 
 # --- ПЕРЕХВАТЧИК ОТПИСКИ ОТ РАССЫЛКИ ---
-if "unsubscribe" in st.query_params and "token" in st.query_params:
-    unsub_email = st.query_params["unsubscribe"]
-    token = st.query_params["token"]
-    
-    if token == get_unsubscribe_token(unsub_email):
-        row_data, r_num = db.load_user(unsub_email)
-        if row_data:
+iif "unsubscribe_token" in st.query_params:
+    token = st.query_params["unsubscribe_token"]
+    # Ищем пользователя по совпадению токена — email в URL не передаём
+    found = False
+    all_users = db.get_all_users()
+    for r_num, u_email, u_name, p_json in all_users:
+        if hmac.compare_digest(token, get_unsubscribe_token(u_email)):
             try:
-                profile = json.loads(row_data[5]) if len(row_data)>5 else {}
+                profile = json.loads(p_json) if p_json else {}
             except:
                 profile = {}
             profile["unsubscribed"] = True
-            db.update_field(r_num, 6, json.dumps(profile)) 
-            st.success(f"Связь прервана. Напоминания для {unsub_email} навсегда отключены.")
-            st.query_params.clear()
+            db.update_field(r_num, 6, json.dumps(profile))
+            st.success("Связь прервана. Напоминания навсегда отключены.")
+            found = True
+            break
+    if not found:
+        st.error("Недействительная ссылка отписки.")
+    st.query_params.clear()
     else:
         st.error("Ошибка верификации. Недействительный токен отписки.")
         st.query_params.clear()
@@ -565,7 +569,7 @@ elif st.session_state.user_email in ADMIN_EMAILS:
                 rem_type = 0
                 
                 unsub_token = get_unsubscribe_token(u_email)
-                unsub_url = f"https://mukti-app.streamlit.app/?unsubscribe={u_email}&token={unsub_token}"
+                unsub_url = f"https://mukti.pro/?unsubscribe_token={unsub_token}"
                 
                 if days_inactive >= 14 and 14 not in reminders_sent:
                     rem_type = 14
