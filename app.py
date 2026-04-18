@@ -149,9 +149,6 @@ if "unsubscribe_token" in st.query_params:
     if not found:
         st.error("Недействительная ссылка отписки.")
     st.query_params.clear()
-    else:
-        st.error("Ошибка верификации. Недействительный токен отписки.")
-        st.query_params.clear()
 
 # --- ПЕРЕХВАТЧИК ВЕРИФИКАЦИИ EMAIL ---
 if "verify" in st.query_params and "token" in st.query_params:
@@ -334,7 +331,7 @@ if not st.session_state.logged_in:
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
-        with tab1:
+    with tab1:
         # Проверяем блокировку
         blocked = False
         if st.session_state.login_blocked_until:
@@ -916,109 +913,84 @@ else:
                                 st.warning("Текст сообщения не может быть пустым.")
 
     # --- 4) ВВОД СООБЩЕНИЯ (двухфазно) ---
+        # --- 4) ВВОД СООБЩЕНИЯ ---
     if can_send and not st.session_state.pending_prompt:
         prompt = st.chat_input("Написать наставнику...")
 
         if prompt:
-            # сохраняем сообщение пользователя
+            msgs_today += 1
+            db.update_field(st.session_state.row_num, 4, msgs_today)
+
+            with st.chat_message("user", avatar=USER_AVATAR):
+                st.markdown(prompt)
+
             st.session_state.messages.append({"role": "user", "content": prompt})
 
-            # сохраняем историю сразу (по желанию, можно убрать)
-            db.save_history(st.session_state.row_num, st.session_state.messages)
+            step = st.session_state.calibration_step
 
-            # ставим ожидание ответа
-            st.session_state.pending_prompt = prompt
-
-            st.rerun()
-
-        # --- ЛОГИКА ЧАТА И ВВОДА СООБЩЕНИЙ ---
-        if can_send and prompt:
-            if prompt:
-                # Отображаем сообщение юзера
-                with st.chat_message("user", avatar=USER_AVATAR):
-                    st.markdown(prompt)
-                
-                # Сохраняем в историю и снимаем энергию
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                msgs_today += 1
-                db.update_field(st.session_state.row_num, 4, msgs_today)
-
-                step = st.session_state.calibration_step
-                
-                # === РЕЖИМ КАЛИБРОВКИ ===
-                if step > 0:
-                    sober_words = ["не пью", "бросил", "завязал", "трезв", "не употребляю", "давно свободен"]
-                    if any(word in prompt.lower() for word in sober_words):
-                        db.update_profile(st.session_state.row_num, "history", "Уже не пьет: " + prompt)
-                        st.session_state.user_profile["history"] = "Уже не пьет: " + prompt
-                        resp = "Понял тебя. Ты уже вышел из системы — это отличный результат. В таком случае моя задача меняется: я буду помогать тебе отслеживать скрытые (фоновые) триггеры, защищать от откатов и развивать осознанность.\n\nПрофиль обновлен. Калибровка завершена.\n\n**Расскажи, как прошел твой день сегодня?**"
+            # === РЕЖИМ КАЛИБРОВКИ (без AI, ответы заготовлены) ===
+            if step > 0:
+                sober_words = ["не пью", "бросил", "завязал", "трезв", "не употребляю", "давно свободен"]
+                if any(word in prompt.lower() for word in sober_words):
+                    db.update_profile(st.session_state.row_num, "history", "Уже не пьет: " + prompt)
+                    st.session_state.user_profile["history"] = "Уже не пьет: " + prompt
+                    resp = "Понял тебя. Ты уже вышел из системы — это отличный результат. В таком случае моя задача меняется: я буду помогать тебе отслеживать скрытые (фоновые) триггеры, защищать от откатов и развивать осознанность.\n\nПрофиль обновлен. Калибровка завершена.\n\n**Расскажи, как прошел твой день сегодня?**"
+                    st.session_state.calibration_step = 0
+                else:
+                    if step == 1:
+                        db.update_profile(st.session_state.row_num, "read_book", prompt)
+                        st.session_state.user_profile["read_book"] = prompt
+                        book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
+                        if "нет" in prompt.lower():
+                            resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                        else:
+                            resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
+                        st.session_state.calibration_step = 2
+                    elif step == 2:
+                        db.update_profile(st.session_state.row_num, "frequency", prompt)
+                        st.session_state.user_profile["frequency"] = prompt
+                        resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
+                        st.session_state.calibration_step = 3
+                    elif step == 3:
+                        db.update_profile(st.session_state.row_num, "triggers", prompt)
+                        st.session_state.user_profile["triggers"] = prompt
+                        resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
+                        st.session_state.calibration_step = 4
+                    elif step == 4:
+                        db.update_profile(st.session_state.row_num, "history", prompt)
+                        st.session_state.user_profile["history"] = prompt
+                        resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
+                        st.session_state.calibration_step = 5
+                    elif step == 5:
+                        db.update_profile(st.session_state.row_num, "state", prompt)
+                        st.session_state.user_profile["state"] = prompt
+                        resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
                         st.session_state.calibration_step = 0
-                    else:
-                        if step == 1:
-                            db.update_profile(st.session_state.row_num, "read_book", prompt)
-                            st.session_state.user_profile["read_book"] = prompt
-                            book_link = "[по этой ссылке](https://www.litres.ru/book/roman-vybornov/pochemu-ya-nikogo-ne-em-72075331/)"
-                            if "нет" in prompt.lower():
-                                resp = f"Понял. Очень рекомендую прочитать ее в свободное время {book_link}, это усилит твою защиту. А пока идем дальше.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                            else:
-                                resp = f"Отлично, значит мы говорим на одном языке. Если захочешь освежить знания, книга лежит {book_link}.\n\n**Как часто Гость (Алкоголь) обычно перехватывает управление?** (Каждый день, только по выходным, бывают запои?)"
-                            st.session_state.calibration_step = 2
-                        elif step == 2:
-                            db.update_profile(st.session_state.row_num, "frequency", prompt)
-                            st.session_state.user_profile["frequency"] = prompt
-                            resp = "Записал. **В какие именно моменты его шепот звучит громче всего? Что служит триггером?** (Сильный стресс на работе, скука дома, компании друзей?)"
-                            st.session_state.calibration_step = 3
-                        elif step == 3:
-                            db.update_profile(st.session_state.row_num, "triggers", prompt)
-                            st.session_state.user_profile["triggers"] = prompt
-                            resp = "Понял. **Какой у тебя опыт сопротивления?** (Это твоя первая осознанная попытка или ты уже пробовал выходить из системы?)"
-                            st.session_state.calibration_step = 4
-                        elif step == 4:
-                            db.update_profile(st.session_state.row_num, "history", prompt)
-                            st.session_state.user_profile["history"] = prompt
-                            resp = "И последнее, но очень важное. **Что ты чувствуешь прямо сейчас?** (Страх, решимость, сомнения, или Гость уже пытается с тобой торговаться?)"
-                            st.session_state.calibration_step = 5
-                        elif step == 5:
-                            db.update_profile(st.session_state.row_num, "state", prompt)
-                            st.session_state.user_profile["state"] = prompt
-                            resp = "Данные приняты. Профиль оцифрован, алгоритмы защиты настроены.\n\n**Расскажи, как прошел твой день сегодня? Пытался ли Гость выйти на связь, или пока всё тихо?**"
-                            st.session_state.calibration_step = 0
-                        
-                    with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
+
+                with st.chat_message("assistant", avatar=BOT_AVATAR):
+                    st.markdown(resp)
+                st.session_state.messages.append({"role": "assistant", "content": resp})
+                db.save_history(st.session_state.row_num, st.session_state.messages)
+
+                if st.session_state.calibration_step == 0:
+                    st.session_state.reading_message = True
+                    time.sleep(1.5)
+                    st.rerun()
+
+            # === СТАНДАРТНЫЙ РЕЖИМ — через pending_prompt (AI) ===
+            else:
+                easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
+                if any(word in prompt.lower() for word in easter_eggs):
+                    resp = random.choice([
+                        "**ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** \nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
+                        "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
+                    ])
+                    with st.chat_message("assistant", avatar=BOT_AVATAR):
+                        st.markdown(resp)
                     st.session_state.messages.append({"role": "assistant", "content": resp})
                     db.save_history(st.session_state.row_num, st.session_state.messages)
-                    
-                    if st.session_state.calibration_step == 0:
-                        st.session_state.reading_message = True
-                        time.sleep(1.5) 
-                        st.rerun()
-                
-                # === СТАНДАРТНЫЙ РЕЖИМ ЧАТА С НЕЙРОСЕТЬЮ ===
                 else:
-                    easter_eggs = ["хочу выпить", "пиво", "накатить", "срыв"]
-                    if any(word in prompt.lower() for word in easter_eggs):
-                        resp = random.choice([
-                            "**ВНИМАНИЕ! ОБНАРУЖЕНА АКТИВНОСТЬ ГОСТЯ.** \nЭто не твои мысли. Сделай 10 глубоких вдохов. Ты сильнее программы.",
-                            "Активирован защитный протокол. Напоминаю: алкоголь забирает у тебя завтрашний день, чтобы дать в долг сегодня под бешеные проценты."
-                        ])
-                        with st.chat_message("assistant", avatar=BOT_AVATAR): st.markdown(resp)
-                        st.session_state.messages.append({"role": "assistant", "content": resp})
-                        db.save_history(st.session_state.row_num, st.session_state.messages)
-                    else:
-                        with st.chat_message("assistant", avatar=BOT_AVATAR):
-                            with st.spinner("Оцифровка мыслей..."):
-                                sys_prompt = settings.get_system_prompt(st.session_state.username, st.session_state.user_profile, get_book_summary())
-                                history_text = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages[-5:]])
-                                full_p = f"{sys_prompt}\n\nИстория последних сообщений:\n{history_text}\n\nUser: {prompt}"
-                                try:
-                                    response = ai_client.models.generate_content(
-                                        model='gemini-2.5-flash',
-                                        contents=full_p
-                                    )
-                                    txt = response.text
-                                    st.markdown(txt)
-                                    st.session_state.messages.append({"role": "assistant", "content": txt})
-                                    db.save_history(st.session_state.row_num, st.session_state.messages)
-                                except Exception as e:
-                                    st.error("Нейросеть временно недоступна. Попробуй ещё раз через 10–20 секунд.")
-                                    print(f"GenAI Error: {e}")
+                    # Отправляем в AI через pending_prompt
+                    db.save_history(st.session_state.row_num, st.session_state.messages)
+                    st.session_state.pending_prompt = prompt
+                    st.rerun()
