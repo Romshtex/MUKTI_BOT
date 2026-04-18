@@ -90,7 +90,7 @@ if "cookies_accepted_session" not in st.session_state:
 
 if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="cookies_accepted") != "true":
     st.markdown("""
-    <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #00E676; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
+    <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #B8973A; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
         <span style='color: #FAFAFA; font-size: 14px;'>
             Система МУКТИ использует файлы cookie, чтобы сохранять твою сессию и обеспечивать безопасность. 
             Продолжая использовать терминал, ты даешь согласие на их обработку.
@@ -269,7 +269,7 @@ if not st.session_state.logged_in:
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #00E676;'>МУКТИ</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #B8973A;'>МУКТИ</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы алкогольной зависимости</p>", unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
@@ -347,13 +347,13 @@ if not st.session_state.logged_in:
                     else: st.error("Аватар с таким Email не найден.")
                     
     # ЮРИДИЧЕСКИЕ ССЫЛКИ
-    st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #00E676; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #00E676; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #B8973A; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #B8973A; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
 
 # ==========================================
 # ПАНЕЛЬ АРХИТЕКТОРА (ЭКСКЛЮЗИВ ДЛЯ АДМИНА)
 # ==========================================
 elif st.session_state.user_email in ADMIN_EMAILS:
-    st.markdown("<h2 style='text-align: center; color: #00E676;'>🛠 ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #B8973A;'>🛠 ТЕРМИНАЛ АРХИТЕКТОРА</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
     with st.spinner("Загрузка данных Матрицы..."):
@@ -534,8 +534,8 @@ elif st.session_state.reading_message:
     message_text = msg_module.get_message_for_day(next_day)
     
     if message_text:
-        st.markdown(f"<div style='border: 2px solid #00E676; padding: 20px; border-radius: 10px; background: rgba(0, 230, 118, 0.05);'>", unsafe_allow_html=True)
-        st.markdown(f"<h3 style='color: #00E676;'>ПОСЛАНИЕ НА ДЕНЬ</h3>", unsafe_allow_html=True)
+        st.markdown(f"<div style='border: 2px solid #B8973A; padding: 20px; border-radius: 10px; background: rgba(184, 151, 58, 0.05);'>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: #B8973A;'>ПОСЛАНИЕ НА ДЕНЬ</h3>", unsafe_allow_html=True)
         st.markdown(message_text)
         st.markdown("</div><br>", unsafe_allow_html=True)
         
@@ -617,7 +617,7 @@ else:
 
 # ВЬЮ: ОТДЕЛ ЗАБОТЫ
     if st.session_state.current_view == "care":
-        st.markdown("<h2 style='text-align: center; color: #00E676;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #B8973A;'>ОТДЕЛ ЗАБОТЫ</h2>", unsafe_allow_html=True)
         
         is_verified = st.session_state.user_profile.get("email_verified", False)
         
@@ -700,7 +700,7 @@ else:
 
         if not can_send:
             if st.session_state.is_vip:
-                st.markdown("<div class='limit-alert' style='border-color: #00E676;'><b>Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
+                st.markdown("<div class='limit-alert' style='border-color: #B8973A;'><b>Нейронная сеть перегружена.</b><br>Система перейдет в спящий режим до завтра.</div>", unsafe_allow_html=True)
             else:
                 st.markdown("<div class='limit-alert' style='border-color: #FF3D00;'><b>Энергия наставника исчерпана на сегодня.</b><br><i>Запроси Полный доступ (VIP), чтобы продолжить работу прямо сейчас.</i></div>", unsafe_allow_html=True)
                 
