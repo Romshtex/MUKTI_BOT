@@ -188,6 +188,8 @@ if "reading_message" not in st.session_state: st.session_state.reading_message =
 if "current_view" not in st.session_state: st.session_state.current_view = "chat"
 if "pending_prompt" not in st.session_state:
     st.session_state.pending_prompt = None
+if "login_attempts" not in st.session_state: st.session_state.login_attempts = 0
+if "login_blocked_until" not in st.session_state: st.session_state.login_blocked_until = None
 
 # --- ФУНКЦИИ ---
 def send_email(to_email, subject, body):
@@ -271,7 +273,7 @@ def load_user_to_session(email):
 
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
-            welcome = f"{st.session_state.username}, dижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            welcome = f"{st.session_state.username}, Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
         else:
@@ -328,29 +330,55 @@ if not st.session_state.logged_in:
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
-    with tab1:
-        with st.form("login_form"):
-            email_in = st.text_input("Email").strip().lower()
-            pwd_in = st.text_input("Пароль", type="password").strip()
-            if st.form_submit_button("ВОЙТИ"):
-                if email_in and pwd_in:
-                    row_data, r_num = db.load_user(email_in)
-                    if row_data:
-                        db_pwd = row_data[2]
-                        
-                        # Используем умную проверку из database.py
-                        if db.check_password(pwd_in, db_pwd):
-                            # Если пароль в базе лежал в открытом виде, перезапишем его сильным хешем
-                            if db_pwd == pwd_in:
-                                db.update_field(r_num, 3, db.hash_password(pwd_in))
-                                                        
+        with tab1:
+        # Проверяем блокировку
+        blocked = False
+        if st.session_state.login_blocked_until:
+            if datetime.now() < st.session_state.login_blocked_until:
+                remaining = int((st.session_state.login_blocked_until - datetime.now()).total_seconds() / 60) + 1
+                st.error(f"Слишком много попыток. Попробуй через {remaining} мин.")
+                blocked = True
+            else:
+                # Блокировка истекла — сбрасываем
+                st.session_state.login_attempts = 0
+                st.session_state.login_blocked_until = None
+
+        if not blocked:
+            with st.form("login_form"):
+                email_in = st.text_input("Email").strip().lower()
+                pwd_in = st.text_input("Пароль", type="password").strip()
+                if st.form_submit_button("ВОЙТИ"):
+                    if email_in and pwd_in:
+                        row_data, r_num = db.load_user(email_in)
+                        # Единое сообщение — не раскрываем существование аккаунта
+                        auth_ok = False
+                        if row_data:
+                            db_pwd = row_data[2]
+                            if db.check_password(pwd_in, db_pwd):
+                                auth_ok = True
+                                # Миграция: если пароль хранился открытым текстом
+                                if db_pwd == pwd_in:
+                                    db.update_field(r_num, 3, db.hash_password(pwd_in))
+
+                        if auth_ok:
+                            st.session_state.login_attempts = 0
+                            st.session_state.login_blocked_until = None
                             cookie_manager.set("mukti_user", make_session_token(email_in), expires_at=datetime.now() + timedelta(days=30))
                             load_user_to_session(email_in)
-                            time.sleep(0.5) 
+                            time.sleep(0.5)
                             st.rerun()
-                        else: st.error("Ошибка доступа. Неверный Email или Пароль.")
-                    else: st.error("Пользователь не найден.")
-                else: st.warning("Введи данные.")
+                        else:
+                            st.session_state.login_attempts += 1
+                            time.sleep(0.7)  # замедляем перебор
+                            if st.session_state.login_attempts >= 5:
+                                st.session_state.login_blocked_until = datetime.now() + timedelta(minutes=10)
+                                st.error("Слишком много попыт��к. Доступ заблокирован на 10 минут.")
+                            else:
+                                attempts_left = 5 - st.session_state.login_attempts
+                                st.error(f"Неверный Email или Пароль. Осталось попыток: {attempts_left}")
+                    else:
+                        st.warning("Введи данные.")
+
     with tab2:
         with st.form("reg_form"):
             new_email = st.text_input("Email (Твой ID в системе)").strip().lower()
@@ -398,7 +426,7 @@ if not st.session_state.logged_in:
                         res = send_email(rec_email, subject, body)
                         if res == "OK": st.success("Письмо с паролем отправлено! Проверь почту (и папку Спам).")
                         else: st.error(f"Сбой отправки: {res}")
-                    else: st.error("Аватар с таким Email не найден.")
+                    else: st.success("Если этот Email зарегистрирован — письмо отправлено. Проверь почту.")
                     
     # ЮРИДИЧЕСКИЕ ССЫЛКИ
     st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #B8973A; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #B8973A; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
