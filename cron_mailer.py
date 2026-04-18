@@ -2,17 +2,22 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import date
-import toml  # Нативная работа с конфигурацией вместо тяжелого UI-фреймворка
+import toml
+import os
 import database as db
 
 # ---------------------------------------------------------------------------
 # ПРЯМОЕ ЧТЕНИЕ СЕКРЕТОВ МАТРИЦЫ
 # ---------------------------------------------------------------------------
+# Путь строится относительно самого файла — работает из любой директории
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_SECRETS_PATH = os.path.join(_BASE_DIR, ".streamlit", "secrets.toml")
+
 try:
-    with open(".streamlit/secrets.toml", "r", encoding="utf-8") as f:
+    with open(_SECRETS_PATH, "r", encoding="utf-8") as f:
         secrets = toml.load(f)
 except FileNotFoundError:
-    print("Критическая ошибка: файл .streamlit/secrets.toml не найден.")
+    print(f"Критическая ошибка: файл secrets.toml не найден по пути {_SECRETS_PATH}")
     exit(1)
 
 YANDEX_EMAIL = secrets.get("YANDEX_EMAIL")
@@ -52,7 +57,8 @@ def run_daily_mailing():
     
     for u in users:
         r_num, u_email, u_name, p_json = u
-        unsub_link = f"https://mukti.pro/?unsub={db.make_unsub_token(u_email)}&email={u_email}"
+        # Email не передаётся в URL — только непрозрачный токен
+        unsub_link = f"https://mukti.pro/?unsubscribe_token={db.make_unsub_token(u_email)}"
         
         subject = f"Твоя практика МУКТИ, {u_name}"
         body = f"""
