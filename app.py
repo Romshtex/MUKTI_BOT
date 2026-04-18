@@ -912,7 +912,6 @@ else:
                             else:
                                 st.warning("Текст сообщения не может быть пустым.")
 
-    # --- 4) ВВОД СООБЩЕНИЯ (двухфазно) ---
         # --- 4) ВВОД СООБЩЕНИЯ ---
     if can_send and not st.session_state.pending_prompt:
         prompt = st.chat_input("Написать наставнику...")
