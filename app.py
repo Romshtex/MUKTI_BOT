@@ -713,16 +713,16 @@ else:
                         st.warning("Напиши текст сообщения.")
 
 # ВЬЮ: ЧАТ
-else:
-    # --- 1) РЕНДЕРИМ ТОЛЬКО ПОСЛЕДНИЕ N СООБЩЕНИЙ ---
-    MAX_RENDERED = 40  # поменяй на 30 или 50 при желании
-    msgs_to_render = st.session_state.messages[-MAX_RENDERED:]
+    else:
+        # --- 1) РЕНДЕРИМ ТОЛЬКО ПОСЛЕДНИЕ N СООБЩЕНИЙ ---
+        MAX_RENDERED = 40  # поменяй на 30 или 50 при желании
+        msgs_to_render = st.session_state.messages[-MAX_RENDERED:]
 
-    for msg in msgs_to_render:
-        if msg.get("role") != "system":
-            av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
-            with st.chat_message(msg["role"], avatar=av):
-                st.markdown(msg.get("content", ""))
+        for msg in msgs_to_render:
+            if msg.get("role") != "system":
+                av = BOT_AVATAR if msg["role"] == "assistant" else USER_AVATAR
+                with st.chat_message(msg["role"], avatar=av):
+                    st.markdown(msg.get("content", ""))
 
     # --- 2) ЕСЛИ ЕСТЬ ОЖИДАЮЩИЙ ПРОМПТ -> ГЕНЕРИМ ОТВЕТ В ОТДЕЛЬНОМ ПРОГОНЕ ---
     if st.session_state.pending_prompt:
