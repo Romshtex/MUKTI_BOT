@@ -62,28 +62,28 @@ def inject_custom_css():
 
         h1, h2, h3, h4, h5, h6 {{
             font-family: 'Playfair Display', serif !important;
-            color: #D4AF37 !important;
+            color: #B8973A !important;
             font-weight: 600 !important;
         }}
 
         .stButton > button {{
             background-color: #1A1A1A !important;
-            color: #D4AF37 !important;
-            border: 1px solid #D4AF37 !important;
+            color: #B8973A !important;
+            border: 1px solid #B8973A !important;
             border-radius: 8px !important;
             font-family: 'Montserrat', sans-serif !important;
             transition: all 0.3s ease !important;
         }}
         .stButton > button:hover {{
-            background-color: #D4AF37 !important;
+            background-color: #B8973A !important;
             color: #121212 !important;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4) !important;
+            box-shadow: 0 0 15px rgba(184, 151, 58, 0.4) !important;
         }}
 
         /* НАТИВНЫЙ ЧАТ-ИНПУТ (Новый код) */
         [data-testid="stChatInput"] {{
             background-color: #1A1A1A !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
+            border: 1px solid rgba(184, 151, 58, 0.3) !important;
             border-radius: 12px !important;
         }}
         [data-testid="stChatInput"] textarea {{
@@ -92,12 +92,12 @@ def inject_custom_css():
         }}
         /* Цвет иконки отправки */
         [data-testid="stChatInputSubmit"] {{
-            color: #D4AF37 !important; 
+            color: #B8973A !important; 
         }}
 
         .stTextInput > div > div > input, .stTextArea > div > div > textarea {{
             background-color: #1A1A1A !important;
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
+            border: 1px solid rgba(184, 151, 58, 0.3) !important;
             color: #EAEAEA !important;
         }}
 
@@ -108,20 +108,20 @@ def inject_custom_css():
         }}
 
         @keyframes pulse-gold {{
-            0% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.5)); }}
-            50% {{ transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.8)); }}
-            100% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.5)); }}
+            0% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(184, 151, 58, 0.5)); }}
+            50% {{ transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(184, 151, 58, 0.8)); }}
+            100% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(184, 151, 58, 0.5)); }}
         }}
         
         div[data-testid="stChatMessage"]:nth-child(even) img {{
             animation: pulse-gold 3s infinite ease-in-out;
-            border: 1px solid rgba(212, 175, 55, 0.3);
+            border: 1px solid rgba(184, 151, 58, 0.3);
             border-radius: 50%;
         }}
 
         .glass-container {{
             background-color: rgba(26, 26, 26, 0.95) !important;
-            border: 1px solid rgba(212, 175, 55, 0.15) !important;
+            border: 1px solid rgba(184, 151, 58, 0.15) !important;
             border-radius: 16px !important;
             padding: 25px !important;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6) !important;
@@ -129,7 +129,7 @@ def inject_custom_css():
         }}
 
         .limit-alert {{
-            border: 1px solid #D4AF37;
+            border: 1px solid #B8973A;
             background: rgba(20, 20, 20, 0.95);
             padding: 20px;
             border-radius: 12px;
