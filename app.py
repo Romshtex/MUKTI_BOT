@@ -232,7 +232,7 @@ def load_user_to_session(email):
 
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
-            welcome = f"Приветствую, {st.session_state.username}. Я — твой ИИ-наставник МУКТИ. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            welcome = f"Приветствую, {st.session_state.username}. Я - МУКТИ, твой AI-модератор пространства по освобождению от зависимости. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
         else:
