@@ -28,7 +28,7 @@ YANDEX_EMAIL = st.secrets.get("YANDEX_EMAIL", "mukti.system@yandex.com")
 YANDEX_PASSWORD = st.secrets.get("YANDEX_PASSWORD", "")
 
 # Новые ключи безопасности (добавь их в secrets.toml)
-SECRET_KEY = st.secrets.get("SECRET_KEY", "mukti_super_secret_matrix_key_2026")
+SECRET_KEY = st.secrets["SECRET_KEY"]
 ADMIN_EMAILS = st.secrets.get("ADMIN_EMAILS", ["mukti.system@yandex.com"])
 
 ai_client = genai.Client(api_key=GOOGLE_API_KEY)
@@ -77,6 +77,32 @@ cookie_manager = stx.CookieManager(key="mukti_cookies")
 
 def generate_temp_password(length=8):
     return secrets.token_urlsafe(length)[:length]
+
+def make_session_token(email: str) -> str:
+    """Создаёт подписанный токен для cookie: base64(email|ts)|подпись"""
+    import base64
+    ts = str(int(time.time()))
+    payload = base64.b64encode(f"{email}|{ts}".encode()).decode()
+    sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+def verify_session_token(token: str) -> str | None:
+    """Проверяет токен. Возвращает email если всё ок, иначе None."""
+    import base64
+    try:
+        payload, sig = token.rsplit(".", 1)
+        expected_sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected_sig, sig):
+            return None
+        decoded = base64.b64decode(payload.encode()).decode()
+        email, ts = decoded.rsplit("|", 1)
+        # Токен живёт максимум 30 дней
+        if time.time() - int(ts) > 30 * 24 * 3600:
+            return None
+        return email
+    except Exception:
+        return None
+
 
 def get_unsubscribe_token(email):
     return hmac.new(SECRET_KEY.encode(), email.encode(), hashlib.sha256).hexdigest()
@@ -269,14 +295,20 @@ def load_user_to_session(email):
         return True
     return False
     
-# ==========================================
 # АВТОЛОГИН ЧЕРЕЗ COOKIES
-# ==========================================
+
 if not st.session_state.logged_in:
     saved_cookie = cookie_manager.get(cookie="mukti_user")
     if saved_cookie:
-        if load_user_to_session(saved_cookie):
+        verified_email = verify_session_token(saved_cookie)
+        if verified_email and load_user_to_session(verified_email):
             st.rerun()
+        elif not verified_email:
+            # Токен невалиден или устарел — удаляем
+            try:
+                cookie_manager.delete("mukti_user")
+            except Exception:
+                pass
 
 # ==========================================
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
@@ -312,7 +344,7 @@ if not st.session_state.logged_in:
                             if db_pwd == pwd_in:
                                 db.update_field(r_num, 3, db.hash_password(pwd_in))
                                                         
-                            cookie_manager.set("mukti_user", email_in, expires_at=datetime.now() + timedelta(days=30))
+                            cookie_manager.set("mukti_user", make_session_token(email_in), expires_at=datetime.now() + timedelta(days=30))
                             load_user_to_session(email_in)
                             time.sleep(0.5) 
                             st.rerun()
@@ -342,7 +374,7 @@ if not st.session_state.logged_in:
                         send_email(new_email, subj, body)
                         # ------------------------------------------------
                         
-                        cookie_manager.set("mukti_user", new_email, expires_at=datetime.now() + timedelta(days=30))
+                        cookie_manager.set("mukti_user", make_session_token(new_email), expires_at=datetime.now() + timedelta(days=30))
                         load_user_to_session(new_email)
                         time.sleep(0.5)
                         st.rerun()
@@ -758,7 +790,7 @@ else:
 
             except Exception as e:
                 placeholder.markdown("**Сервер перегружен или временно недоступен.** Попробуй ещё раз через 10–20 секунд.")
-                st.error(f"СИСТЕМНАЯ ОШИБКА ИИ: {e}")
+                print(f"GenAI Error (pending): {e}")
 
             finally:
                 st.session_state.pending_prompt = None
@@ -868,8 +900,7 @@ else:
             st.rerun()
 
         # --- ЛОГИКА ЧАТА И ВВОДА СООБЩЕНИЙ ---
-        if can_send:
-            prompt = st.chat_input("Написать наставнику...")
+        if can_send and prompt:
             if prompt:
                 # Отображаем сообщение юзера
                 with st.chat_message("user", avatar=USER_AVATAR):
@@ -957,5 +988,5 @@ else:
                                     st.session_state.messages.append({"role": "assistant", "content": txt})
                                     db.save_history(st.session_state.row_num, st.session_state.messages)
                                 except Exception as e:
-                                    st.error(f"СИСТЕМНАЯ ОШИБКА ИИ: {e}")
+                                    st.error("Нейросеть временно недоступна. Попробуй ещё раз через 10–20 секунд.")
                                     print(f"GenAI Error: {e}")
