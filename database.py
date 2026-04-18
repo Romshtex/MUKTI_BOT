@@ -21,7 +21,7 @@ COL_VIP        = 8
 # ---------------------------------------------------------------------------
 def hash_password(password: str) -> str:
     """Хеширование с использованием HMAC и системного ключа (Соли)."""
-    secret = st.secrets.get("SECRET_KEY", "mukti_super_secret_matrix_key_2026").encode("utf-8")
+    secret = st.secrets["SECRET_KEY"].encode("utf-8")
     return hmac.new(secret, password.encode("utf-8"), hashlib.sha256).hexdigest()
 
 def check_password(plain: str, stored: str) -> bool:
@@ -38,7 +38,7 @@ def check_password(plain: str, stored: str) -> bool:
 # ТОКЕН ОТПИСКИ (HMAC-подписанный, без хранения в БД)
 # ---------------------------------------------------------------------------
 def _unsub_secret() -> str:
-    return st.secrets.get("UNSUB_SECRET", "mukti-default-secret-CHANGE-ME")
+    return st.secrets["UNSUB_SECRET"]
 
 def make_unsub_token(email: str) -> str:
     """Генерирует одноразовый HMAC-токен для конкретного email."""
@@ -89,10 +89,13 @@ def get_gspread_client():
 @st.cache_resource(ttl=3600)
 def get_db():
     client = get_gspread_client()
-    if client:
-        try: return client.open("MUKTI_DB").sheet1
-        except Exception as e: print(f"Open DB Error: {e}")
-    return None
+    if not client:
+        raise RuntimeError("DB недоступна: клиент gspread не создан")
+    try:
+        return client.open("MUKTI_DB").sheet1
+    except Exception as e:
+        print(f"Open DB Error: {e}")
+        raise RuntimeError(f"DB недоступна: {e}")
 
 # ---------------------------------------------------------------------------
 # САНИТИЗАЦИЯ (защита от инъекций формул Google Sheets)
