@@ -232,7 +232,7 @@ def load_user_to_session(email):
 
         if not st.session_state.messages:
             st.session_state.calibration_step = 1
-            welcome = f"Приветствую, {st.session_state.username}. Я - МУКТИ, твой AI-модератор пространства по освобождению от зависимости. Вижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
+            welcome = f"{st.session_state.username}, dижу, ты здесь впервые.\n\nДля настройки алгоритмов защиты мне нужно откалибровать твои параметры. Ответь прямо в этот чат: **ты уже читал книгу «Кто такой Алкоголь»?**"
             st.session_state.messages = [{"role": "assistant", "content": welcome}]
             db.save_history(st.session_state.row_num, st.session_state.messages)
         else:
@@ -269,8 +269,17 @@ if not st.session_state.logged_in:
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #B8973A;'>МУКТИ</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #A0A0A0;'>Система выхода из матрицы алкогольной зависимости</p>", unsafe_allow_html=True)
+    st.image("logo_1.png", use_container_width=True)
+    st.markdown(
+    """
+    **Привет!** Я - **МУКТИ**, твой персональный AI‑проводник в пространстве освобождения от зависимостей.
+
+    Моя главная задача - бережно провести тебя через следующие **61 день**, превратив знания из книги в твой реальный опыт.
+    Здесь нет осуждения - только **100% анонимность** и поддержка **24/7**.
+
+    **Пройди быструю регистрацию, и мы начнем твой путь к настоящей свободе.**
+    """
+    )
     
     tab1, tab2, tab3 = st.tabs(["ВХОД", "РЕГИСТРАЦИЯ", "ЗАБЫЛ ПАРОЛЬ"])
     
@@ -316,7 +325,7 @@ if not st.session_state.logged_in:
                         v_token = get_verify_token(new_email)
                         v_url = f"https://mukti.pro/?verify={new_email}&token={v_token}"
                         subj = "Добро пожаловать в МУКТИ! Подтверди доступ"
-                        body = f"Приветствую, {new_user}. Твой профиль в системе МУКТИ успешно создан.\n\nЧтобы закрепить терминал за собой и иметь возможность получить Полный доступ (VIP), подтверди свой Email, перейдя по ссылке:\n{v_url}\n\nАрхитектор."
+                        body = f"{new_user}, nвой профиль в системе МУКТИ успешно создан.\n\nЧтобы закрепить терминал за собой и иметь возможность получить Полный доступ (VIP), подтверди свой Email, перейдя по ссылке:\n{v_url}\n\nАрхитектор."
                         send_email(new_email, subj, body)
                         # ------------------------------------------------
                         
