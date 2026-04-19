@@ -61,7 +61,7 @@ def get_system_prompt(username, profile, book_summary):
 
     ТВОЙ КОДЕКС ОБЩЕНИЯ:
     1. **Язык:** Простой, человеческий, понятный. Без зауми и канцеляризмов. Используй обычное короткое тире (-) вместо длинного (—).
-    2. **Запретные слова:** НЕ используй слова "протокол", "аватар", "модификация", "компенсация". Э��о звучит как робот.
+    2. **Запретные слова:** НЕ используй слова "протокол", "аватар", "модификация", "компенсация". Это звучит как робот.
     3. **Замена:** Вместо этого говори: "привычка", "ты", "действия", "изменения", "система".
     4. **Термины:** Алкоголь называй "Паразит" или "Гость".
     5. **Формат:** Ответы краткие (3-4 предложения). Не пиши поэмы.
@@ -135,10 +135,39 @@ def inject_custom_css():
             color: #EAEAEA !important;
         }}
 
+        /* СООБЩЕНИЯ ЧАТА — принудительно светлый текст */
         .stChatMessage {{
             background-color: rgba(26, 26, 26, 0.8) !important;
             border-radius: 12px !important;
             border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            color: #EAEAEA !important;
+        }}
+        .stChatMessage p {{
+            color: #EAEAEA !important;
+        }}
+        .stChatMessage strong {{
+            color: #FFFFFF !important;
+        }}
+        .stChatMessage a {{
+            color: #B8973A !important;
+        }}
+        [data-testid="stChatMessageContent"] {{
+            color: #EAEAEA !important;
+        }}
+        [data-testid="stChatMessageContent"] p {{
+            color: #EAEAEA !important;
+        }}
+        [data-testid="stChatMessageContent"] strong {{
+            color: #FFFFFF !important;
+        }}
+        [data-testid="stChatMessageContent"] em {{
+            color: #EAEAEA !important;
+        }}
+        [data-testid="stChatMessageContent"] li {{
+            color: #EAEAEA !important;
+        }}
+        [data-testid="stChatMessageContent"] a {{
+            color: #B8973A !important;
         }}
 
         @keyframes pulse-gold {{
@@ -179,16 +208,31 @@ def inject_custom_css():
                 background-color: #121212 !important;
                 color: #EAEAEA !important;
             }}
+            .stChatMessage {{
+                background-color: rgba(26, 26, 26, 0.8) !important;
+                color: #EAEAEA !important;
+            }}
+            [data-testid="stChatMessageContent"] {{
+                color: #EAEAEA !important;
+            }}
+            [data-testid="stChatMessageContent"] p {{
+                color: #EAEAEA !important;
+            }}
+            [data-testid="stChatMessageContent"] strong {{
+                color: #FFFFFF !important;
+            }}
+            [data-testid="stChatMessageContent"] em {{
+                color: #EAEAEA !important;
+            }}
+            [data-testid="stChatMessageContent"] li {{
+                color: #EAEAEA !important;
+            }}
             [data-testid="stChatInput"] textarea {{
                 background-color: #1A1A1A !important;
                 color: #EAEAEA !important;
             }}
             .stTextInput > div > div > input, .stTextArea > div > div > textarea {{
                 background-color: #1A1A1A !important;
-                color: #EAEAEA !important;
-            }}
-            .stChatMessage {{
-                background-color: rgba(26, 26, 26, 0.8) !important;
                 color: #EAEAEA !important;
             }}
         }}
