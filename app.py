@@ -805,7 +805,8 @@ else:
 
                 response = ai_client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=full_p
+                    contents=full_p,
+                    config={"thinking_config": {"thinking_budget": 0}}
                 )
 
                 txt = (response.text or "").strip()
