@@ -682,37 +682,23 @@ else:
     status_short = "Активен" if st.session_state.is_vip else ("День 1" if is_day_one else "Базовый")
 
     st.markdown(f"""
-    <div class="control-bar">
-        <div class="control-bar-header">
-            <span style="color:#B8973A; font-size:10px;">●</span>
-            <span class="cb-username">{st.session_state.username}</span>
-            {vip_html}
-        </div>
-        <div class="cb-stats">
-            <div>
-                <div class="cb-stat-label">День пути</div>
-                <div class="cb-stat-value">{msg_day}<span> / 61</span></div>
-            </div>
-            <div>
-                <div class="cb-stat-label">Энергия</div>
-                <div class="cb-stat-value">{msgs_today}<span> / {current_limit}</span></div>
-            </div>
-            <div>
-                <div class="cb-stat-label">Статус</div>
-                <div class="cb-stat-status">{status_short}</div>
-            </div>
-        </div>
-        <div class="energy-bar-wrap">
-            <div class="energy-bar-header">
-                <span>Резерв на сегодня</span>
-                <span>{msgs_today} из {current_limit} использовано</span>
-            </div>
-            <div class="energy-bar-track">
-                <div class="energy-bar-fill" style="width:{energy_pct}%"></div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="control-bar">
+<div class="control-bar-header">
+<span style="color:#B8973A; font-size:10px;">●</span>
+<span class="cb-username">{st.session_state.username}</span>
+{vip_html}
+</div>
+<div class="cb-stats">
+<div><div class="cb-stat-label">День пути</div><div class="cb-stat-value">{msg_day}<span> / 61</span></div></div>
+<div><div class="cb-stat-label">Энергия</div><div class="cb-stat-value">{msgs_today}<span> / {current_limit}</span></div></div>
+<div><div class="cb-stat-label">Статус</div><div class="cb-stat-status">{status_short}</div></div>
+</div>
+<div class="energy-bar-wrap">
+<div class="energy-bar-header"><span>Резерв на сегодня</span><span>{msgs_today} из {current_limit} использовано</span></div>
+<div class="energy-bar-track"><div class="energy-bar-fill" style="width:{energy_pct}%"></div></div>
+</div>
+</div>
+""", unsafe_allow_html=True)
 
     col_nav1, col_nav2, col_nav3 = st.columns(3)
     with col_nav1:
