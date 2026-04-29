@@ -317,6 +317,7 @@ if not st.session_state.logged_in:
 # АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ
 # ==========================================
 if not st.session_state.logged_in:
+    st.markdown('<div class="login-geo-bg">', unsafe_allow_html=True)
     st.image("logo_1.png", use_container_width=True)
     st.markdown(
     """
@@ -430,6 +431,7 @@ if not st.session_state.logged_in:
                     else: st.success("Если этот Email зарегистрирован — письмо отправлено. Проверь почту.")
                     
     # ЮРИДИЧЕСКИЕ ССЫЛКИ
+    st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 13px; color: #888; margin-top: 15px;'>Продолжая, ты соглашаешься с <br><a href='https://disk.yandex.ru/i/dWaWRwOfdVFtFQ' target='_blank' style='color: #B8973A; text-decoration: none;'>Политикой конфиденциальности</a> и <a href='https://disk.yandex.ru/i/RBnom-qhT8KVhA' target='_blank' style='color: #B8973A; text-decoration: none;'>Публичной офертой</a>.</p>", unsafe_allow_html=True)
 
 # ==========================================
