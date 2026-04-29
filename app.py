@@ -676,29 +676,60 @@ else:
     else:
         status_text = "🟢 Базовый (День 1)" if is_day_one else "🔵 Базовый"
     
-   # --- ВАРИАНТ 3: ВЫПАДАЮЩЕЕ МЕНЮ (EXPANDER) ---
-    with st.expander(f"ПАНЕЛЬ УПРАВЛЕНИЯ: {st.session_state.username}", expanded=False):
-        st.markdown(f"**Уровень загрузки:** День {msg_day}/61")
-        st.markdown(f"**Энергия:** {limit_text}")
-        st.markdown(f"**Режим:** {status_text}")
-        
-        st.markdown("---")
-        col_nav1, col_nav2, col_nav3 = st.columns(3)
-        with col_nav1:
-            if st.button("ТЕРМИНАЛ", use_container_width=True):
-                st.session_state.current_view = "chat"
-                st.rerun()
-        with col_nav2:
-            if st.button("ОТДЕЛ ЗАБОТЫ", use_container_width=True):
-                st.session_state.current_view = "care"
-                st.rerun()
-        with col_nav3:
-            if st.button("ВЫХОД", use_container_width=True):
-                try: cookie_manager.delete("mukti_user")
-                except: pass
-                st.session_state.logged_in = False
-                time.sleep(0.5)
-                st.rerun()
+    # --- ПОСТОЯННАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ---
+    energy_pct = int((msgs_today / current_limit) * 100) if current_limit > 0 else 0
+    vip_html = '<span class="vip-badge">VIP</span>' if st.session_state.is_vip else ''
+    status_short = "Активен" if st.session_state.is_vip else ("День 1" if is_day_one else "Базовый")
+
+    st.markdown(f"""
+    <div class="control-bar">
+        <div class="control-bar-header">
+            <span style="color:#B8973A; font-size:10px;">●</span>
+            <span class="cb-username">{st.session_state.username}</span>
+            {vip_html}
+        </div>
+        <div class="cb-stats">
+            <div>
+                <div class="cb-stat-label">День пути</div>
+                <div class="cb-stat-value">{msg_day}<span> / 61</span></div>
+            </div>
+            <div>
+                <div class="cb-stat-label">Энергия</div>
+                <div class="cb-stat-value">{msgs_today}<span> / {current_limit}</span></div>
+            </div>
+            <div>
+                <div class="cb-stat-label">Статус</div>
+                <div class="cb-stat-status">{status_short}</div>
+            </div>
+        </div>
+        <div class="energy-bar-wrap">
+            <div class="energy-bar-header">
+                <span>Резерв на сегодня</span>
+                <span>{msgs_today} из {current_limit} использовано</span>
+            </div>
+            <div class="energy-bar-track">
+                <div class="energy-bar-fill" style="width:{energy_pct}%"></div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_nav1, col_nav2, col_nav3 = st.columns(3)
+    with col_nav1:
+        if st.button("ТЕРМИНАЛ", use_container_width=True):
+            st.session_state.current_view = "chat"
+            st.rerun()
+    with col_nav2:
+        if st.button("ЗАБОТА", use_container_width=True):
+            st.session_state.current_view = "care"
+            st.rerun()
+    with col_nav3:
+        if st.button("ВЫХОД", use_container_width=True):
+            try: cookie_manager.delete("mukti_user")
+            except: pass
+            st.session_state.logged_in = False
+            time.sleep(0.5)
+            st.rerun()
 
 # ВЬЮ: ОТДЕЛ ЗАБОТЫ
     if st.session_state.current_view == "care":
