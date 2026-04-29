@@ -78,162 +78,273 @@ def get_system_prompt(username, profile, book_summary):
 def inject_custom_css():
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500&family=Playfair+Display:wght@600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500&display=swap');
+
+        /* ── ЦВЕТОВАЯ СИСТЕМА ── */
+        :root {{
+            --bg:          #0E0E0E;
+            --surface:     #1A1A18;
+            --gold-dark:   #8B6914;
+            --gold:        #B8973A;
+            --gold-light:  #E8D08A;
+            --text:        #E8EAE5;
+            --text-dim:    rgba(232,234,229,0.45);
+        }}
 
         .stApp {{
-            background-color: #121212 !important;
-            color: #EAEAEA !important;
-            font-family: 'Montserrat', sans-serif !important;
+            background-color: var(--bg) !important;
+            color: var(--text) !important;
+            font-family: 'Jost', sans-serif !important;
         }}
 
         h1, h2, h3, h4, h5, h6 {{
-            font-family: 'Playfair Display', serif !important;
-            color: #B8973A !important;
+            font-family: 'Cormorant Garamond', serif !important;
+            color: var(--gold) !important;
             font-weight: 600 !important;
         }}
 
+        /* ── КНОПКИ ── */
         .stButton > button {{
-            background-color: #1A1A1A !important;
-            color: #B8973A !important;
-            border: 1px solid #B8973A !important;
+            background-color: var(--surface) !important;
+            color: var(--gold) !important;
+            border: 1px solid var(--gold) !important;
             border-radius: 8px !important;
-            font-family: 'Montserrat', sans-serif !important;
+            font-family: 'Jost', sans-serif !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.06em !important;
             transition: all 0.3s ease !important;
         }}
         .stButton > button:hover {{
-            background-color: #B8973A !important;
-            color: #121212 !important;
-            box-shadow: 0 0 15px rgba(184, 151, 58, 0.4) !important;
+            background-color: var(--gold) !important;
+            color: var(--bg) !important;
+            box-shadow: 0 0 15px rgba(184,151,58,0.4) !important;
         }}
 
-        /* НАТИВНЫЙ ЧАТ-ИНПУТ — принудительно тёмный на любой теме */
+        /* ── ЧАТ-ИНПУТ ── */
         [data-testid="stChatInput"] {{
-            background-color: #1A1A1A !important;
-            border: 1px solid rgba(184, 151, 58, 0.3) !important;
+            background-color: var(--surface) !important;
+            border: 1px solid rgba(184,151,58,0.3) !important;
             border-radius: 12px !important;
         }}
         [data-testid="stChatInput"] textarea {{
-            background-color: #1A1A1A !important;
-            color: #EAEAEA !important;
-            font-family: 'Montserrat', sans-serif !important;
-            caret-color: #B8973A !important;
+            background-color: var(--surface) !important;
+            color: var(--text) !important;
+            font-family: 'Jost', sans-serif !important;
+            caret-color: var(--gold) !important;
         }}
         [data-testid="stChatInput"] textarea::placeholder {{
-            color: rgba(234, 234, 234, 0.4) !important;
+            color: var(--text-dim) !important;
         }}
         [data-testid="stChatInput"] > div {{
-            background-color: #1A1A1A !important;
+            background-color: var(--surface) !important;
         }}
-        /* Цвет иконки отправки */
         [data-testid="stChatInputSubmit"] {{
-            color: #B8973A !important;
+            color: var(--gold) !important;
         }}
 
-        .stTextInput > div > div > input, .stTextArea > div > div > textarea {{
-            background-color: #1A1A1A !important;
-            border: 1px solid rgba(184, 151, 58, 0.3) !important;
-            color: #EAEAEA !important;
+        /* ── ТЕКСТ-ИНПУТЫ ── */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {{
+            background-color: var(--surface) !important;
+            border: 1px solid rgba(184,151,58,0.3) !important;
+            color: var(--text) !important;
         }}
 
-        /* СООБЩЕНИЯ ЧАТА — принудительно светлый текст */
+        /* ── ПУЗЫРИ ЧАТА ── */
         .stChatMessage {{
-            background-color: rgba(26, 26, 26, 0.8) !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            color: #EAEAEA !important;
+            background-color: rgba(26,26,24,0.85) !important;
+            border: 1px solid rgba(255,255,255,0.05) !important;
+            color: var(--text) !important;
         }}
-        .stChatMessage p {{
-            color: #EAEAEA !important;
+        /* Бот: острый угол слева сверху */
+        div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
+            border-radius: 2px 12px 12px 12px !important;
         }}
-        .stChatMessage strong {{
-            color: #FFFFFF !important;
+        /* Юзер: острый угол справа сверху */
+        div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
+            border-radius: 12px 2px 12px 12px !important;
         }}
-        .stChatMessage a {{
-            color: #B8973A !important;
+        .stChatMessage p,
+        [data-testid="stChatMessageContent"],
+        [data-testid="stChatMessageContent"] p,
+        [data-testid="stChatMessageContent"] li {{
+            color: var(--text) !important;
         }}
-        [data-testid="stChatMessageContent"] {{
-            color: #EAEAEA !important;
-        }}
-        [data-testid="stChatMessageContent"] p {{
-            color: #EAEAEA !important;
-        }}
+        .stChatMessage strong,
         [data-testid="stChatMessageContent"] strong {{
             color: #FFFFFF !important;
         }}
-        [data-testid="stChatMessageContent"] em {{
-            color: #EAEAEA !important;
-        }}
-        [data-testid="stChatMessageContent"] li {{
-            color: #EAEAEA !important;
-        }}
+        .stChatMessage a,
         [data-testid="stChatMessageContent"] a {{
-            color: #B8973A !important;
+            color: var(--gold) !important;
         }}
 
+        /* ── ПОДСВЕТКА КЛЮЧЕВЫХ ТЕРМИНОВ ── */
+        .highlight-gold {{
+            color: var(--gold-light) !important;
+            font-weight: 500;
+        }}
+
+        /* ── АНИМАЦИЯ АВАТАРА БОТА ── */
         @keyframes pulse-gold {{
-            0% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(184, 151, 58, 0.5)); }}
-            50% {{ transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(184, 151, 58, 0.8)); }}
-            100% {{ transform: scale(1); filter: drop-shadow(0 0 2px rgba(184, 151, 58, 0.5)); }}
+            0%   {{ transform: scale(1);    filter: drop-shadow(0 0 2px rgba(184,151,58,0.5)); }}
+            50%  {{ transform: scale(1.05); filter: drop-shadow(0 0 10px rgba(184,151,58,0.8)); }}
+            100% {{ transform: scale(1);    filter: drop-shadow(0 0 2px rgba(184,151,58,0.5)); }}
         }}
-
         div[data-testid="stChatMessage"]:nth-child(even) img {{
             animation: pulse-gold 3s infinite ease-in-out;
-            border: 1px solid rgba(184, 151, 58, 0.3);
+            border: 1px solid rgba(184,151,58,0.3);
             border-radius: 50%;
         }}
 
+        /* ── СТЕКЛЯННЫЙ КОНТЕЙНЕР ── */
         .glass-container {{
-            background-color: rgba(26, 26, 26, 0.95) !important;
-            border: 1px solid rgba(184, 151, 58, 0.15) !important;
+            background-color: rgba(26,26,24,0.95) !important;
+            border: 1px solid rgba(184,151,58,0.15) !important;
             border-radius: 16px !important;
             padding: 25px !important;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6) !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.6) !important;
             margin-bottom: 20px !important;
         }}
 
+        /* ── ЛИМИТ-АЛЕРТ ── */
         .limit-alert {{
-            border: 1px solid #B8973A;
-            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid var(--gold);
+            background: rgba(20,20,20,0.95);
             padding: 20px;
             border-radius: 12px;
             text-align: center;
         }}
 
+        /* ── ЭКРАН ВХОДА: ГЕОМЕТРИЧЕСКИЙ ПАТТЕРН ── */
+        .login-geo-bg {{
+            position: relative;
+        }}
+        .login-geo-bg::before {{
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(184,151,58,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(184,151,58,0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }}
+
+        /* ── ПАНЕЛЬ УПРАВЛЕНИЯ (вместо expander) ── */
+        .control-bar {{
+            background: var(--surface);
+            border: 1px solid var(--gold-dark);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }}
+        .control-bar-header {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }}
+        .cb-username {{
+            font-family: 'Jost', sans-serif;
+            font-weight: 500;
+            font-size: 16px;
+            color: var(--text);
+        }}
+        .vip-badge {{
+            background: var(--gold-dark);
+            color: var(--gold-light);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }}
+        .cb-stats {{
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }}
+        .cb-stat-label {{
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }}
+        .cb-stat-value {{
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--gold);
+            line-height: 1;
+        }}
+        .cb-stat-value span {{
+            font-size: 14px;
+            color: var(--text-dim);
+        }}
+        .cb-stat-status {{
+            font-family: 'Jost', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gold-light);
+        }}
+        .energy-bar-wrap {{
+            margin-bottom: 14px;
+        }}
+        .energy-bar-header {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }}
+        .energy-bar-track {{
+            height: 4px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }}
+        .energy-bar-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }}
+
+        /* ── СКРЫВАЕМ HEADER/FOOTER STREAMLIT ── */
         header {{ visibility: hidden; }}
         footer {{ visibility: hidden; }}
 
-        /* Глобальная защита от светлой темы браузера */
+        /* ── ЗАЩИТА ОТ СВЕТЛОЙ ТЕМЫ ── */
         @media (prefers-color-scheme: light) {{
             .stApp {{
-                background-color: #121212 !important;
-                color: #EAEAEA !important;
+                background-color: var(--bg) !important;
+                color: var(--text) !important;
             }}
             .stChatMessage {{
-                background-color: rgba(26, 26, 26, 0.8) !important;
-                color: #EAEAEA !important;
+                background-color: rgba(26,26,24,0.85) !important;
+                color: var(--text) !important;
             }}
-            [data-testid="stChatMessageContent"] {{
-                color: #EAEAEA !important;
-            }}
-            [data-testid="stChatMessageContent"] p {{
-                color: #EAEAEA !important;
+            [data-testid="stChatMessageContent"],
+            [data-testid="stChatMessageContent"] p,
+            [data-testid="stChatMessageContent"] em,
+            [data-testid="stChatMessageContent"] li {{
+                color: var(--text) !important;
             }}
             [data-testid="stChatMessageContent"] strong {{
                 color: #FFFFFF !important;
             }}
-            [data-testid="stChatMessageContent"] em {{
-                color: #EAEAEA !important;
-            }}
-            [data-testid="stChatMessageContent"] li {{
-                color: #EAEAEA !important;
-            }}
-            [data-testid="stChatInput"] textarea {{
-                background-color: #1A1A1A !important;
-                color: #EAEAEA !important;
-            }}
-            .stTextInput > div > div > input, .stTextArea > div > div > textarea {{
-                background-color: #1A1A1A !important;
-                color: #EAEAEA !important;
+            [data-testid="stChatInput"] textarea,
+            .stTextInput > div > div > input,
+            .stTextArea > div > div > textarea {{
+                background-color: var(--surface) !important;
+                color: var(--text) !important;
             }}
         }}
     </style>
