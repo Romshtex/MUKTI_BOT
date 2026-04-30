@@ -150,19 +150,19 @@ def inject_custom_css():
             color: var(--text) !important;
         }}
 
-        /* ── ПУЗЫРИ ЧАТА ── */
-        .stChatMessage {{
-            background-color: rgba(26,26,24,0.85) !important;
-            border: 1px solid rgba(255,255,255,0.05) !important;
-            color: var(--text) !important;
-        }}
-        /* Бот: острый угол слева сверху */
-        div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
-            border-radius: 2px 12px 12px 12px !important;
-        }}
-        /* Юзер: острый угол справа сверху */
+                /* ── ПУЗЫРИ ЧАТА ── */
+        /* Бот — слева, юзер — справа (разворот через flex) */
         div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {{
+            flex-direction: row-reverse !important;
             border-radius: 12px 2px 12px 12px !important;
+            background-color: rgba(40, 36, 24, 0.9) !important;
+            border: 1px solid rgba(184,151,58,0.12) !important;
+        }}
+        div[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {{
+            flex-direction: row !important;
+            border-radius: 2px 12px 12px 12px !important;
+            background-color: rgba(26, 26, 24, 0.85) !important;
+            border: 1px solid rgba(255,255,255,0.05) !important;
         }}
         .stChatMessage p,
         [data-testid="stChatMessageContent"],
@@ -177,6 +177,48 @@ def inject_custom_css():
         .stChatMessage a,
         [data-testid="stChatMessageContent"] a {{
             color: var(--gold) !important;
+        }}
+
+        /* ── ЧАТ-ХЕДЕР ── */
+        .chat-header {{
+            background: var(--surface);
+            border: 1px solid rgba(184,151,58,0.2);
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }}
+        .chat-header-left {{
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }}
+        .chat-header-title {{
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.15em;
+        }}
+        .chat-header-sub {{
+            font-family: 'Jost', sans-serif;
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }}
+        .chat-header-day {{
+            font-family: 'Jost', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            border: 1px solid rgba(184,151,58,0.25);
+            border-radius: 20px;
+            padding: 4px 14px;
         }}
 
         /* ── ПОДСВЕТКА КЛЮЧЕВЫХ ТЕРМИНОВ ── */
