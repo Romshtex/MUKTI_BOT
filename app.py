@@ -673,8 +673,6 @@ else:
 
     msgs_today = st.session_state.get("msgs_today", 0)
 
-    msgs_today = st.session_state.msgs_today 
-
     msg_day = int(st.session_state.user_profile.get("msg_day", 0))
     is_day_one = (msg_day <= 1)
     current_limit = 20 if st.session_state.is_vip else (10 if is_day_one else 3)
