@@ -794,6 +794,17 @@ else:
 
 # ВЬЮ: ЧАТ
     else:
+                # --- ХЕД ЧАТ-ОКНА ---
+        st.markdown(f"""
+<div class="chat-header">
+<div class="chat-header-left">
+<span class="chat-header-title">М У К Т И</span>
+<span class="chat-header-sub">Наставник активен</span>
+</div>
+<span class="chat-header-day">День {msg_day} / 61</span>
+</div>
+""", unsafe_allow_html=True)
+        
         # --- 1) РЕНДЕРИМ ТОЛЬКО ПОСЛЕДНИЕ N СООБЩЕНИЙ ---
         MAX_RENDERED = 40  # поменяй на 30 или 50 при желании
         msgs_to_render = st.session_state.messages[-MAX_RENDERED:]
