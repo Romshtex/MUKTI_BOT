@@ -318,6 +318,72 @@ def inject_custom_css():
         }}
 
         /* ── СКРЫВАЕМ HEADER/FOOTER STREAMLIT ── */
+                /* ── ТАБЫ (экран входа) ── */
+        .stTabs [data-baseweb="tab-list"] {{
+            background: transparent !important;
+            border-bottom: 1px solid rgba(184,151,58,0.2) !important;
+            gap: 0 !important;
+        }}
+        .stTabs [data-baseweb="tab"] {{
+            background: transparent !important;
+            color: var(--text-dim) !important;
+            font-family: 'Jost', sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.12em !important;
+            text-transform: uppercase !important;
+            border: none !important;
+            padding: 10px 24px !important;
+        }}
+        .stTabs [aria-selected="true"] {{
+            color: var(--gold) !important;
+            background: transparent !important;
+        }}
+        .stTabs [data-baseweb="tab-highlight"] {{
+            background-color: var(--gold) !important;
+            height: 2px !important;
+        }}
+        .stTabs [data-baseweb="tab-border"] {{
+            background-color: rgba(184,151,58,0.2) !important;
+        }}
+        .stTabs [data-baseweb="tab-panel"] {{
+            background: var(--surface) !important;
+            border: 1px solid rgba(184,151,58,0.15) !important;
+            border-radius: 0 0 12px 12px !important;
+            padding: 20px !important;
+        }}
+
+        /* ── КНОПКИ ВНУТРИ ФОРМ (form_submit_button) ── */
+        .stForm .stButton > button,
+        [data-testid="stForm"] button[kind="primaryFormSubmit"],
+        [data-testid="stForm"] button[kind="secondaryFormSubmit"] {{
+            width: 100% !important;
+            background-color: transparent !important;
+            color: var(--gold) !important;
+            border: 1px solid var(--gold) !important;
+            border-radius: 6px !important;
+            font-family: 'Jost', sans-serif !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.12em !important;
+            padding: 12px !important;
+            margin-top: 8px !important;
+            transition: all 0.3s ease !important;
+        }}
+        [data-testid="stForm"] button:hover {{
+            background-color: var(--gold) !important;
+            color: var(--bg) !important;
+        }}
+
+        /* ── ЛЕЙБЛЫ ИНПУТОВ ── */
+        .stTextInput label, .stTextArea label {{
+            font-family: 'Jost', sans-serif !important;
+            font-size: 10px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.12em !important;
+            text-transform: uppercase !important;
+            color: var(--text-dim) !important;
+        }}
         header {{ visibility: hidden; }}
         footer {{ visibility: hidden; }}
 
