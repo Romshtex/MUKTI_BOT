@@ -249,6 +249,15 @@ def load_user_to_session(email):
         
         try: st.session_state.messages = json.loads(row_data[6]) if len(row_data)>6 else []
         except: st.session_state.messages = []
+                # Инициализация счётчика сообщений в session_state
+        today_str_init = str(date.today())
+        try:
+            last_date_db = row_data[4] if len(row_data) > 4 else ""
+            msgs_db = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
+            st.session_state.msgs_today = msgs_db if last_date_db == today_str_init else 0
+        except:
+            st.session_state.msgs_today = 0
+        st.session_state.last_date_checked = today_str_init
         
         if email in ADMIN_EMAILS:
             st.session_state.current_view = "admin"
@@ -653,26 +662,16 @@ elif st.session_state.reading_message:
 # ОСНОВНОЙ ИНТЕРФЕЙС (ЧАТ / ЗАБОТА)
 # ==========================================
 else:
-    # --- РАСЧЕТ ЭНЕРГИИ ---
-    msgs_today = 0
+        # --- РАСЧЕТ ЭНЕРГИИ (из session_state, без запроса к БД) ---
     today_str = str(date.today())
-    
-    if "msgs_today" not in st.session_state:
-        st.session_state.msgs_today = 0
-    if "last_date_checked" not in st.session_state:
-        st.session_state.last_date_checked = ""
 
-    if st.session_state.last_date_checked != today_str:
-        row_data, _ = db.load_user(st.session_state.user_email)
-        if row_data:
-            last_date = row_data[4] if len(row_data) > 4 else today_str
-            msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
-            if last_date != today_str:
-                msgs_today = 0
-                db.update_field(st.session_state.row_num, 5, today_str)
-                db.update_field(st.session_state.row_num, 4, msgs_today)
-            st.session_state.msgs_today = msgs_today
+    if st.session_state.get("last_date_checked") != today_str:
+        st.session_state.msgs_today = 0
         st.session_state.last_date_checked = today_str
+        db.update_field(st.session_state.row_num, 5, today_str)
+        db.update_field(st.session_state.row_num, 4, 0)
+
+    msgs_today = st.session_state.get("msgs_today", 0)
 
     msgs_today = st.session_state.msgs_today 
 
