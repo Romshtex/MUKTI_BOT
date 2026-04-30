@@ -112,9 +112,11 @@ def get_verify_token(email):
 
 # --- ПРОВЕРКА СОГЛАСИЯ НА COOKIES ---
 if "cookies_accepted_session" not in st.session_state:
-    st.session_state.cookies_accepted_session = False
+    st.session_state.cookies_accepted_session = (
+        cookie_manager.get(cookie="cookies_accepted") == "true"
+    )
 
-if not st.session_state.cookies_accepted_session and cookie_manager.get(cookie="cookies_accepted") != "true":
+if not st.session_state.cookies_accepted_session:
     st.markdown("""
     <div style='background-color: rgba(30,30,30,0.9); border: 1px solid #B8973A; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 15px;'>
         <span style='color: #FAFAFA; font-size: 14px;'>
@@ -655,14 +657,24 @@ else:
     msgs_today = 0
     today_str = str(date.today())
     
-    row_data, _ = db.load_user(st.session_state.user_email)
-    if row_data:
-        last_date = row_data[4] if len(row_data) > 4 else today_str
-        msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
-        if last_date != today_str:
-            msgs_today = 0
-            db.update_field(st.session_state.row_num, 5, today_str) 
-            db.update_field(st.session_state.row_num, 4, msgs_today) 
+    if "msgs_today" not in st.session_state:
+        st.session_state.msgs_today = 0
+    if "last_date_checked" not in st.session_state:
+        st.session_state.last_date_checked = ""
+
+    if st.session_state.last_date_checked != today_str:
+        row_data, _ = db.load_user(st.session_state.user_email)
+        if row_data:
+            last_date = row_data[4] if len(row_data) > 4 else today_str
+            msgs_today = int(row_data[3]) if len(row_data) > 3 and str(row_data[3]).isdigit() else 0
+            if last_date != today_str:
+                msgs_today = 0
+                db.update_field(st.session_state.row_num, 5, today_str)
+                db.update_field(st.session_state.row_num, 4, msgs_today)
+            st.session_state.msgs_today = msgs_today
+        st.session_state.last_date_checked = today_str
+
+    msgs_today = st.session_state.msgs_today 
 
     msg_day = int(st.session_state.user_profile.get("msg_day", 0))
     is_day_one = (msg_day <= 1)
@@ -949,6 +961,7 @@ else:
 
         if prompt:
             msgs_today += 1
+            st.session_state.msgs_today = msgs_today
             db.update_field(st.session_state.row_num, 4, msgs_today)
 
             with st.chat_message("user", avatar=USER_AVATAR):
