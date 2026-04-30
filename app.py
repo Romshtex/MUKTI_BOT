@@ -808,7 +808,7 @@ else:
 <div class="chat-header">
 <div class="chat-header-left">
 <span class="chat-header-title">М У К Т И</span>
-<span class="chat-header-sub">Наставник активен</span>
+<span class="chat-header-sub">активен</span>
 </div>
 <span class="chat-header-day">День {msg_day} / 61</span>
 </div>
