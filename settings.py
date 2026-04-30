@@ -120,17 +120,24 @@ def inject_custom_css():
             box-shadow: 0 0 15px rgba(184,151,58,0.4) !important;
         }}
 
-        /* ── ЧАТ-ИНПУТ ── */
+                /* ── ЧАТ-ИНПУТ ── */
         [data-testid="stChatInput"] {{
             background-color: var(--surface) !important;
             border: 1px solid rgba(184,151,58,0.3) !important;
             border-radius: 12px !important;
+            box-shadow: none !important;
+        }}
+        [data-testid="stChatInput"]:focus-within {{
+            border-color: rgba(184,151,58,0.6) !important;
+            box-shadow: 0 0 0 1px rgba(184,151,58,0.3) !important;
         }}
         [data-testid="stChatInput"] textarea {{
             background-color: var(--surface) !important;
             color: var(--text) !important;
             font-family: 'Jost', sans-serif !important;
             caret-color: var(--gold) !important;
+            outline: none !important;
+            box-shadow: none !important;
         }}
         [data-testid="stChatInput"] textarea::placeholder {{
             color: var(--text-dim) !important;
@@ -139,7 +146,14 @@ def inject_custom_css():
             background-color: var(--surface) !important;
         }}
         [data-testid="stChatInputSubmit"] {{
-            color: var(--gold) !important;
+            background-color: var(--gold) !important;
+            color: var(--bg) !important;
+            border-radius: 8px !important;
+            border: none !important;
+        }}
+        [data-testid="stChatInputSubmit"]:hover {{
+            background-color: var(--gold-light) !important;
+            box-shadow: 0 0 12px rgba(184,151,58,0.5) !important;
         }}
 
         /* ── ТЕКСТ-ИНПУТЫ ── */
